@@ -1,4 +1,4 @@
-import { GoogleLogin } from "@react-oauth/google";
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 import { useGoogleAuth } from "@/hooks/auth/useGoogleAuth";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -6,7 +6,7 @@ export default function Auth() {
   const { mutate: login, isPending } = useGoogleAuth();
   const navigate = useNavigate();
 
-  const handleGoogleLogin = (credentialResponse: any) => {
+  const handleGoogleLogin = (credentialResponse: CredentialResponse) => {
     if (credentialResponse.credential) {
       login(
         { idToken: credentialResponse.credential },
