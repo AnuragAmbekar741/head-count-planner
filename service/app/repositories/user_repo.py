@@ -24,6 +24,15 @@ class UserRepository:
         return user
 
     @staticmethod
+    async def get_user_by_google_id(google_id: str) -> Optional[User]:
+        """Get user by Google ID"""
+        try:
+            return await User.get(google_id=google_id)
+        except DoesNotExist:
+            return None
+    
+
+    @staticmethod
     async def get_user_by_id(user_id: str|UUID) -> Optional[User]:
         """Get user by ID"""
         try:

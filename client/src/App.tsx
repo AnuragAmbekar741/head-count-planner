@@ -1,10 +1,20 @@
-import { Button } from "./components/ui/button";
+import { RouterProvider, createRouter } from "@tanstack/react-router";
+import { QueryProvider } from "@/providers/QueryClient";
+import { routeTree } from "./routeTree.gen";
+
+const router = createRouter({ routeTree });
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
+}
 
 function App() {
   return (
-    <div className="text-xl text-center">
-      <Button variant={"default"}>Hello</Button>
-    </div>
+    <QueryProvider>
+      <RouterProvider router={router} />
+    </QueryProvider>
   );
 }
 
