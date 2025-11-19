@@ -1,37 +1,27 @@
 import { Outlet } from "@tanstack/react-router";
-import { useCurrentUser } from "@/hooks/user/useCurrentUser";
-import { ModeToggle } from "@/components/toggle-theme/ToggleTheme";
+import { AppSidebar } from "@/components/app-sidebar/AppSidebar";
+import { SiteHeader } from "@/components/site-header/SiteHeader";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 export default function DashboardLayout() {
-  const { data: user, isLoading } = useCurrentUser();
-
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">Head Count Planner</h1>
-            <div className="flex items-center gap-4">
-              {user && (
-                <>
-                  <span>Welcome, {user.name}</span>
-                  <span className="text-sm text-muted-foreground">
-                    {user.email}
-                  </span>
-                </>
-              )}
-              <ModeToggle />
-            </div>
+    <SidebarProvider
+      style={
+        {
+          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--header-height": "calc(var(--spacing) * 12)",
+        } as React.CSSProperties
+      }
+    >
+      <AppSidebar variant="inset" />
+      <SidebarInset>
+        <SiteHeader />
+        <div className="flex flex-1 flex-col">
+          <div className="@container/main flex flex-1 flex-col gap-2">
+            <Outlet />
           </div>
         </div>
-      </header>
-      <main className="container mx-auto px-4 py-8">
-        <Outlet />
-      </main>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
