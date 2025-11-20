@@ -1,7 +1,7 @@
 from uuid import UUID
 from typing import Optional, List
 from enum import Enum
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, Query
 from pydantic import BaseModel, Field
 from app.middleware.auth import get_current_user
 from app.models.user import User
@@ -185,4 +185,23 @@ async def update_cost(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error updating cost: {str(e)}"
+        )
+
+@router.get("", response_model=List[CostResponse])
+async def get_costs(
+    scenario_id: Optional[UUID] = Query(None, description="Filter costs by scenario ID"),
+    _current_user: User = Depends(get_current_user)
+):
+    """Get all costs, optionally filtered by scenario_id"""
+    try:
+        if scenario_id:
+            costs = await CostRepository.get_costs_by_scenario(scenario_id)
+        else:
+            costs = await CostRepository.get_all_costs()
+        return [CostResponse(**_cost_to_dict(cost)) for cost in costs]
+    except Exception as e:
+        logger.error(f"❌ Error getting costs: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting costs: {str(e)}"
         )

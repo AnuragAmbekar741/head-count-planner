@@ -250,6 +250,9 @@ export function DataTable({ data: initialData }: { data: CostItem[] }) {
     pageIndex: 0,
     pageSize: 10,
   });
+  const [activeView, setActiveView] = React.useState<"monthly" | "yearly">(
+    "monthly"
+  );
   const sortableId = React.useId();
   const sensors = useSensors(
     useSensor(MouseSensor, {}),
@@ -261,6 +264,96 @@ export function DataTable({ data: initialData }: { data: CostItem[] }) {
     () => data?.map(({ id }) => id) || [],
     [data]
   );
+
+  // Calculate months/years for time series view
+  const calculateTimeSeries = () => {
+    if (!data || data.length === 0) return { months: [], years: [] };
+
+    const allMonths = new Set<number>();
+    const allYears = new Set<number>();
+
+    data.forEach((item) => {
+      const startMonth = item.startAt;
+      const endMonth = item.endsAt || 24; // Default to 24 months if null
+
+      for (let month = startMonth; month <= endMonth; month++) {
+        allMonths.add(month);
+        const year = Math.ceil(month / 12);
+        allYears.add(year);
+      }
+    });
+
+    return {
+      months: Array.from(allMonths).sort((a, b) => a - b),
+      years: Array.from(allYears).sort((a, b) => a - b),
+    };
+  };
+
+  const { months, years } = calculateTimeSeries();
+
+  // Calculate cost for a specific time period
+  const calculateCostForPeriod = (
+    item: CostItem,
+    period: number,
+    view: "monthly" | "yearly"
+  ) => {
+    if (period < item.startAt) return 0;
+    if (item.endsAt !== null && period > item.endsAt) return 0;
+
+    if (view === "monthly") {
+      // Calculate monthly cost based on frequency
+      switch (item.frequency) {
+        case "MONTHLY":
+          return item.annualValue / 12;
+        case "QUARTERLY":
+          return period % 3 === item.startAt % 3 ? item.annualValue / 4 : 0;
+        case "YEARLY":
+          return period % 12 === item.startAt % 12 ? item.annualValue : 0;
+        case "ONE_TIME":
+          return period === item.startAt ? item.annualValue : 0;
+        default:
+          return item.annualValue / 12;
+      }
+    } else {
+      // Calculate yearly cost
+      const yearStartMonth = (period - 1) * 12 + 1;
+      const yearEndMonth = period * 12;
+
+      if (
+        item.startAt > yearEndMonth ||
+        (item.endsAt !== null && item.endsAt < yearStartMonth)
+      ) {
+        return 0;
+      }
+
+      switch (item.frequency) {
+        case "MONTHLY": {
+          const activeMonths =
+            Math.min(yearEndMonth, item.endsAt || yearEndMonth) -
+            Math.max(yearStartMonth, item.startAt) +
+            1;
+          return (item.annualValue / 12) * activeMonths;
+        }
+        case "QUARTERLY": {
+          const quartersInYear =
+            Math.floor(
+              (Math.min(yearEndMonth, item.endsAt || yearEndMonth) -
+                Math.max(yearStartMonth, item.startAt)) /
+                3
+            ) + 1;
+          return (item.annualValue / 4) * quartersInYear;
+        }
+        case "YEARLY":
+          return item.annualValue;
+        case "ONE_TIME":
+          return item.startAt >= yearStartMonth && item.startAt <= yearEndMonth
+            ? item.annualValue
+            : 0;
+        default:
+          return item.annualValue;
+      }
+    }
+  };
 
   const table = useReactTable({
     data,
@@ -298,16 +391,262 @@ export function DataTable({ data: initialData }: { data: CostItem[] }) {
     }
   }
 
+  // Render outline table (always visible)
+  const renderOutlineTable = () => (
+    <>
+      <div className="overflow-hidden rounded-lg border">
+        <DndContext
+          collisionDetection={closestCenter}
+          modifiers={[restrictToVerticalAxis]}
+          onDragEnd={handleDragEnd}
+          sensors={sensors}
+          id={sortableId}
+        >
+          <Table>
+            <TableHeader className="bg-muted sticky top-0 z-10">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => {
+                    return (
+                      <TableHead key={header.id} colSpan={header.colSpan}>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                      </TableHead>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody className="**:data-[slot=table-cell]:first:w-8">
+              {table.getRowModel().rows?.length ? (
+                <SortableContext
+                  items={dataIds}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {table.getRowModel().rows.map((row) => (
+                    <DraggableRow key={row.id} row={row} />
+                  ))}
+                </SortableContext>
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center"
+                  >
+                    No results.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </DndContext>
+      </div>
+      <div className="flex items-center justify-between px-4">
+        <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
+          {table.getFilteredSelectedRowModel().rows.length} of{" "}
+          {table.getFilteredRowModel().rows.length} row(s) selected.
+        </div>
+        <div className="flex w-full items-center gap-8 lg:w-fit">
+          <div className="hidden items-center gap-2 lg:flex">
+            <Label htmlFor="rows-per-page" className="text-sm font-medium">
+              Rows per page
+            </Label>
+            <Select
+              value={`${table.getState().pagination.pageSize}`}
+              onValueChange={(value) => {
+                table.setPageSize(Number(value));
+              }}
+            >
+              <SelectTrigger size="sm" className="w-20" id="rows-per-page">
+                <SelectValue
+                  placeholder={table.getState().pagination.pageSize}
+                />
+              </SelectTrigger>
+              <SelectContent side="top">
+                {[10, 20, 30, 40, 50].map((pageSize) => (
+                  <SelectItem key={pageSize} value={`${pageSize}`}>
+                    {pageSize}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex w-fit items-center justify-center text-sm font-medium">
+            Page {table.getState().pagination.pageIndex + 1} of{" "}
+            {table.getPageCount()}
+          </div>
+          <div className="ml-auto flex items-center gap-2 lg:ml-0">
+            <Button
+              variant="outline"
+              className="hidden h-8 w-8 p-0 lg:flex"
+              onClick={() => table.setPageIndex(0)}
+              disabled={!table.getCanPreviousPage()}
+            >
+              <span className="sr-only">Go to first page</span>
+              <IconChevronsLeft />
+            </Button>
+            <Button
+              variant="outline"
+              className="size-8"
+              size="icon"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              <span className="sr-only">Go to previous page</span>
+              <IconChevronLeft />
+            </Button>
+            <Button
+              variant="outline"
+              className="size-8"
+              size="icon"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              <span className="sr-only">Go to next page</span>
+              <IconChevronRight />
+            </Button>
+            <Button
+              variant="outline"
+              className="hidden size-8 lg:flex"
+              size="icon"
+              onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+              disabled={!table.getCanNextPage()}
+            >
+              <span className="sr-only">Go to last page</span>
+              <IconChevronsRight />
+            </Button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  // Render time series table
+  const renderTimeSeriesTable = (view: "monthly" | "yearly") => {
+    const periods = view === "monthly" ? months : years;
+
+    return (
+      <div className="overflow-x-auto rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="sticky left-0 z-10 bg-background">
+                Cost Item
+              </TableHead>
+              <TableHead className="sticky left-0 z-10 bg-background">
+                Category
+              </TableHead>
+              {periods.map((period) => (
+                <TableHead key={period} className="text-center min-w-[100px]">
+                  {view === "monthly" ? `Month ${period}` : `Year ${period}`}
+                </TableHead>
+              ))}
+              <TableHead className="text-right">Total</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.map((item) => {
+              const total = periods.reduce(
+                (sum, period) =>
+                  sum + calculateCostForPeriod(item, period, view),
+                0
+              );
+
+              return (
+                <TableRow key={item.id}>
+                  <TableCell className="sticky left-0 z-10 bg-background font-medium">
+                    {item.title}
+                  </TableCell>
+                  <TableCell className="sticky left-0 z-10 bg-background">
+                    <Badge variant="outline">{item.category}</Badge>
+                  </TableCell>
+                  {periods.map((period) => {
+                    const cost = calculateCostForPeriod(item, period, view);
+                    return (
+                      <TableCell key={period} className="text-right">
+                        {cost > 0
+                          ? `$${cost.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+                          : "-"}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell className="text-right font-medium">
+                    $
+                    {total.toLocaleString(undefined, {
+                      maximumFractionDigits: 0,
+                    })}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {/* Total Row */}
+            <TableRow className="bg-muted/50 font-semibold">
+              <TableCell colSpan={2} className="sticky left-0 z-10 bg-muted/50">
+                Total
+              </TableCell>
+              {periods.map((period) => {
+                const periodTotal = data.reduce(
+                  (sum, item) =>
+                    sum + calculateCostForPeriod(item, period, view),
+                  0
+                );
+                return (
+                  <TableCell key={period} className="text-right">
+                    $
+                    {periodTotal.toLocaleString(undefined, {
+                      maximumFractionDigits: 0,
+                    })}
+                  </TableCell>
+                );
+              })}
+              <TableCell className="text-right">
+                $
+                {data
+                  .reduce((sum, item) => {
+                    return (
+                      sum +
+                      periods.reduce(
+                        (itemSum, period) =>
+                          itemSum + calculateCostForPeriod(item, period, view),
+                        0
+                      )
+                    );
+                  }, 0)
+                  .toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
+
   return (
     <Tabs
-      defaultValue="outline"
+      defaultValue="monthly"
       className="w-full flex-col justify-start gap-6"
+      onValueChange={(value) => {
+        if (value === "monthly" || value === "yearly") {
+          setActiveView(value);
+        }
+      }}
     >
       <div className="flex items-center justify-between px-4 lg:px-6">
         <Label htmlFor="view-selector" className="sr-only">
           View
         </Label>
-        <Select defaultValue="outline">
+        <Select
+          value={activeView}
+          onValueChange={(value) => {
+            if (value === "monthly" || value === "yearly") {
+              setActiveView(value);
+            }
+          }}
+        >
           <SelectTrigger
             className="flex w-fit @4xl/main:hidden"
             size="sm"
@@ -316,21 +655,13 @@ export function DataTable({ data: initialData }: { data: CostItem[] }) {
             <SelectValue placeholder="Select a view" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="outline">Outline</SelectItem>
-            <SelectItem value="past-performance">Past Performance</SelectItem>
-            <SelectItem value="key-personnel">Key Personnel</SelectItem>
-            <SelectItem value="focus-documents">Focus Documents</SelectItem>
+            <SelectItem value="monthly">Monthly</SelectItem>
+            <SelectItem value="yearly">Yearly</SelectItem>
           </SelectContent>
         </Select>
         <TabsList className="**:data-[slot=badge]:bg-muted-foreground/30 hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:px-1 @4xl/main:flex">
-          <TabsTrigger value="outline">Outline</TabsTrigger>
-          <TabsTrigger value="past-performance">
-            Past Performance <Badge variant="secondary">3</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="key-personnel">
-            Key Personnel <Badge variant="secondary">2</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="focus-documents">Focus Documents</TabsTrigger>
+          <TabsTrigger value="monthly">Monthly</TabsTrigger>
+          <TabsTrigger value="yearly">Yearly</TabsTrigger>
         </TabsList>
         <div className="flex items-center gap-2">
           <DropdownMenu>
@@ -372,153 +703,35 @@ export function DataTable({ data: initialData }: { data: CostItem[] }) {
           </Button>
         </div>
       </div>
+
+      {/* Monthly Tab - Outline Table + Monthly Time Series */}
       <TabsContent
-        value="outline"
-        className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
+        value="monthly"
+        className="relative flex flex-col gap-6 overflow-auto px-4 lg:px-6"
       >
-        <div className="overflow-hidden rounded-lg border">
-          <DndContext
-            collisionDetection={closestCenter}
-            modifiers={[restrictToVerticalAxis]}
-            onDragEnd={handleDragEnd}
-            sensors={sensors}
-            id={sortableId}
-          >
-            <Table>
-              <TableHeader className="bg-muted sticky top-0 z-10">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      return (
-                        <TableHead key={header.id} colSpan={header.colSpan}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
-                      );
-                    })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody className="**:data-[slot=table-cell]:first:w-8">
-                {table.getRowModel().rows?.length ? (
-                  <SortableContext
-                    items={dataIds}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {table.getRowModel().rows.map((row) => (
-                      <DraggableRow key={row.id} row={row} />
-                    ))}
-                  </SortableContext>
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
-                      No results.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </DndContext>
-        </div>
-        <div className="flex items-center justify-between px-4">
-          <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-            {table.getFilteredSelectedRowModel().rows.length} of{" "}
-            {table.getFilteredRowModel().rows.length} row(s) selected.
-          </div>
-          <div className="flex w-full items-center gap-8 lg:w-fit">
-            <div className="hidden items-center gap-2 lg:flex">
-              <Label htmlFor="rows-per-page" className="text-sm font-medium">
-                Rows per page
-              </Label>
-              <Select
-                value={`${table.getState().pagination.pageSize}`}
-                onValueChange={(value) => {
-                  table.setPageSize(Number(value));
-                }}
-              >
-                <SelectTrigger size="sm" className="w-20" id="rows-per-page">
-                  <SelectValue
-                    placeholder={table.getState().pagination.pageSize}
-                  />
-                </SelectTrigger>
-                <SelectContent side="top">
-                  {[10, 20, 30, 40, 50].map((pageSize) => (
-                    <SelectItem key={pageSize} value={`${pageSize}`}>
-                      {pageSize}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex w-fit items-center justify-center text-sm font-medium">
-              Page {table.getState().pagination.pageIndex + 1} of{" "}
-              {table.getPageCount()}
-            </div>
-            <div className="ml-auto flex items-center gap-2 lg:ml-0">
-              <Button
-                variant="outline"
-                className="hidden h-8 w-8 p-0 lg:flex"
-                onClick={() => table.setPageIndex(0)}
-                disabled={!table.getCanPreviousPage()}
-              >
-                <span className="sr-only">Go to first page</span>
-                <IconChevronsLeft />
-              </Button>
-              <Button
-                variant="outline"
-                className="size-8"
-                size="icon"
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-              >
-                <span className="sr-only">Go to previous page</span>
-                <IconChevronLeft />
-              </Button>
-              <Button
-                variant="outline"
-                className="size-8"
-                size="icon"
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-              >
-                <span className="sr-only">Go to next page</span>
-                <IconChevronRight />
-              </Button>
-              <Button
-                variant="outline"
-                className="hidden size-8 lg:flex"
-                size="icon"
-                onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-                disabled={!table.getCanNextPage()}
-              >
-                <span className="sr-only">Go to last page</span>
-                <IconChevronsRight />
-              </Button>
-            </div>
-          </div>
+        {/* Outline Table - Always Visible */}
+        <div className="space-y-4">{renderOutlineTable()}</div>
+
+        {/* Monthly Time Series Table */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Monthly View</h3>
+          {renderTimeSeriesTable("monthly")}
         </div>
       </TabsContent>
+
+      {/* Yearly Tab - Outline Table + Yearly Time Series */}
       <TabsContent
-        value="past-performance"
-        className="flex flex-col px-4 lg:px-6"
+        value="yearly"
+        className="relative flex flex-col gap-6 overflow-auto px-4 lg:px-6"
       >
-        <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
-      </TabsContent>
-      <TabsContent value="key-personnel" className="flex flex-col px-4 lg:px-6">
-        <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
-      </TabsContent>
-      <TabsContent
-        value="focus-documents"
-        className="flex flex-col px-4 lg:px-6"
-      >
-        <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
+        {/* Outline Table - Always Visible */}
+        <div className="space-y-4">{renderOutlineTable()}</div>
+
+        {/* Yearly Time Series Table */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Yearly View</h3>
+          {renderTimeSeriesTable("yearly")}
+        </div>
       </TabsContent>
     </Tabs>
   );

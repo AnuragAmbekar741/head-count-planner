@@ -1,4 +1,4 @@
-import { post, put } from "./request";
+import { post, put, get } from "./request";
 
 // Frequency constants matching backend
 export const CostFrequency = {
@@ -69,4 +69,14 @@ export const updateCost = async (
   data: CostUpdateRequest
 ): Promise<CostResponse> => {
   return await put<CostResponse, CostUpdateRequest>(`/costs/${costId}`, data);
+};
+
+export const getCosts = async (): Promise<CostResponse[]> => {
+  return await get<CostResponse[]>("/costs");
+};
+
+export const getCostsByScenario = async (
+  scenarioId: string
+): Promise<CostResponse[]> => {
+  return await get<CostResponse[]>(`/costs?scenario_id=${scenarioId}`);
 };

@@ -1,4 +1,4 @@
-import { IconCirclePlusFilled, type Icon } from "@tabler/icons-react";
+import { type Icon } from "@tabler/icons-react";
 import { Link, useLocation } from "@tanstack/react-router";
 import {
   SidebarGroup,
@@ -26,21 +26,6 @@ export function NavMain({
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
-        <SidebarMenu>
-          <SidebarMenuItem className="flex items-center gap-2">
-            <SidebarMenuButton
-              tooltip="Quick Create"
-              isActive={isActive("/dashboard/quick-create")}
-              className="min-w-8 duration-200 ease-linear"
-              asChild
-            >
-              <Link to="/dashboard/quick-create">
-                <IconCirclePlusFilled />
-                <span>Quick Create</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
         <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>

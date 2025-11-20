@@ -95,3 +95,8 @@ class CostRepository:
     async def get_costs_by_scenario(scenario_id: UUID) -> List[Cost]:
         """Get all costs for a scenario"""
         return await Cost.filter(scenario_id=scenario_id).all()
+
+    @staticmethod
+    async def get_all_costs() -> List[Cost]:
+        """Get all costs"""
+        return await Cost.all()
