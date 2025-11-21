@@ -42,8 +42,12 @@ export const BaseModal: React.FC<BaseModalProps> = ({
   const handleCancel = () => {
     if (onCancel) {
       onCancel();
+      // Let onCancel handle whether to close or not
+      // If onCancel doesn't call onOpenChange, modal stays open
+    } else {
+      // Only auto-close if no onCancel handler is provided
+      onOpenChange(false);
     }
-    onOpenChange(false);
   };
 
   const handleSubmit = () => {

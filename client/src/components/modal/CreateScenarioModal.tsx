@@ -18,7 +18,6 @@ import { CostFrequency, type CostFrequencyType } from "@/api/cost";
 import { RevenueFrequency, type RevenueFrequencyType } from "@/api/revenue";
 import { Plus, Trash2, Sparkles } from "lucide-react";
 import { TEAM_TEMPLATES } from "@/data/scenario-templates";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 interface CostFormData {
   title: string;
   value: string;
@@ -77,9 +76,6 @@ export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
   const [selectedTemplateIndices, setSelectedTemplateIndices] = useState<
     Set<number>
   >(new Set());
-  const [templateViewType, setTemplateViewType] = useState<
-    "costs" | "revenues"
-  >("costs");
 
   const createScenario = useCreateScenario();
   const createCostsBulk = useCreateCostsBulk();

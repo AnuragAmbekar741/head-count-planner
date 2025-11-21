@@ -17,6 +17,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { Plus, GripVertical, TrendingUp, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CreateScenarioModal } from "@/components/modal";
@@ -34,6 +35,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { useUpdateCost } from "@/hooks/cost";
 import { useUpdateRevenue } from "@/hooks/revenue";
+import { MatrixCard } from "@/components/matrix-card";
 
 // Update PipelineItem to match TableItem structure:
 interface PipelineItem {
@@ -184,7 +186,7 @@ function DraggableItem({ item }: { item: PipelineItem }) {
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <Card className="mb-2 cursor-grab active:cursor-grabbing hover:shadow-md transition-all border-l-4 border-l-primary/50">
+      <Card className="mb-2 cursor-grab active:cursor-grabbing">
         <CardContent className="p-3">
           <div className="flex flex-col gap-2">
             {/* Title */}
@@ -248,7 +250,7 @@ function StageColumn({
 
   // Use provided metrics or calculate on the fly
   const stageMetrics = metrics || calculateStageMetrics(items);
-  const { netBurn, growthRate, totalRevenue } = stageMetrics;
+  const { netBurn } = stageMetrics;
   const isProfitable = netBurn < 0;
 
   // Calculate runway (months remaining) based on cumulative burn
@@ -259,13 +261,11 @@ function StageColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex-1 min-w-[280px] rounded-xl border-2 p-5 transition-all duration-200 bg-card ${
-        isOver
-          ? "border-primary bg-primary/10 scale-[1.02] shadow-xl ring-2 ring-primary/20"
-          : "border-border hover:border-primary/30 hover:shadow-md"
+      className={`flex-1 min-w-[280px] rounded-xl border-2 p-5 bg-card ${
+        isOver ? "border-primary bg-primary/10" : "border-border"
       }`}
     >
-      <CardHeader className="p-0 pb-4">
+      <CardHeader className="p-0">
         <div className="flex items-center justify-between mb-3">
           <CardTitle className="text-xl font-bold">{stage.name}</CardTitle>
           <Badge variant="outline" className="text-xs">
@@ -273,60 +273,33 @@ function StageColumn({
           </Badge>
         </div>
 
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-2 gap-3">
-          {/* Net Burn/Growth */}
-          <div className="space-y-1">
+        {/* Metrics - Net Burn and Cumulative Burn */}
+        <div className="space-y-3">
+          {/* Net Burn Row */}
+          <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">
               Net Burn
             </span>
-            <div className="flex items-center gap-1">
-              <Badge
-                variant={isProfitable ? "default" : "destructive"}
-                className={`text-sm font-semibold ${
-                  isProfitable ? "bg-green-500 hover:bg-green-600" : ""
-                }`}
-              >
-                {isProfitable ? (
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                ) : (
-                  <TrendingDown className="h-3 w-3 mr-1" />
-                )}
-                {formatCurrency(Math.abs(netBurn))}
-              </Badge>
-            </div>
+            <Badge
+              variant={isProfitable ? "default" : "destructive"}
+              className={`text-xs font-semibold ${
+                isProfitable ? "bg-green-500 hover:bg-green-600" : ""
+              }`}
+            >
+              {isProfitable ? (
+                <TrendingUp className="h-3 w-3 mr-1" />
+              ) : (
+                <TrendingDown className="h-3 w-3 mr-1" />
+              )}
+              {formatCurrency(Math.abs(netBurn))}
+            </Badge>
           </div>
 
-          {/* Growth Rate */}
-          {totalRevenue > 0 && (
-            <div className="space-y-1">
+          {/* Cumulative Burn Row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-muted-foreground">
-                Growth
-              </span>
-              <Badge
-                variant="outline"
-                className={`text-sm font-semibold ${
-                  growthRate >= 0 ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {growthRate >= 0 ? "+" : ""}
-                {growthRate.toFixed(1)}%
-              </Badge>
-            </div>
-          )}
-
-          {/* Cumulative Burn */}
-          <div className="space-y-1 col-span-2 pt-2 border-t">
-            <span className="text-xs font-medium text-muted-foreground">
-              Cumulative Burn
-            </span>
-            <div className="flex items-center justify-between">
-              <span
-                className={`text-lg font-bold ${
-                  cumulativeBurn > 0 ? "text-red-600" : "text-green-600"
-                }`}
-              >
-                {formatCurrency(Math.abs(cumulativeBurn))}
+                Cumulative
               </span>
               {runway && runway < 24 && (
                 <Badge variant="outline" className="text-xs text-orange-600">
@@ -334,11 +307,22 @@ function StageColumn({
                 </Badge>
               )}
             </div>
+            <Badge
+              variant={cumulativeBurn > 0 ? "destructive" : "default"}
+              className={`text-xs font-semibold ${
+                cumulativeBurn <= 0 ? "bg-green-500 hover:bg-green-600" : ""
+              }`}
+            >
+              {formatCurrency(Math.abs(cumulativeBurn))}
+            </Badge>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="p-0 space-y-2">
+      {/* Add Separator between metrics and cards */}
+      <Separator className="my-4" />
+
+      <CardContent className="p-0">
         <SortableContext
           items={items.map((i) => i.id)}
           strategy={verticalListSortingStrategy}
@@ -369,10 +353,8 @@ function UnassignedPanel({ items }: { items: PipelineItem[] }) {
   return (
     <div
       ref={setNodeRef}
-      className={`w-72 rounded-xl border-2 border-dashed p-5 transition-all duration-200 bg-muted/30 ${
-        isOver
-          ? "border-primary bg-primary/10 scale-[1.02] shadow-lg ring-2 ring-primary/20"
-          : "border-border hover:border-primary/30"
+      className={`w-72 rounded-xl border-2 border-dashed p-5 bg-muted/30 ${
+        isOver ? "border-primary bg-primary/10" : "border-border"
       }`}
     >
       <div className="flex items-center justify-between mb-4">
@@ -532,6 +514,9 @@ const Pipeline: React.FC = () => {
     setStages(newStages);
   }, [allItems, viewType]);
 
+  // Get selected scenario
+  const selectedScenario = scenarios?.find((s) => s.id === selectedScenarioId);
+
   // Calculate totals
   const totals = React.useMemo(() => {
     const totalCosts = allItems
@@ -546,16 +531,27 @@ const Pipeline: React.FC = () => {
     const growthRate =
       totalCosts > 0 ? ((totalRevenue - totalCosts) / totalCosts) * 100 : 0;
 
+    // Calculate runway
+    const monthlyNetBurn = netBurn / 12;
+    let runway: number | null = null;
+    const funding = selectedScenario?.funding
+      ? parseFloat(selectedScenario.funding.toString())
+      : 0;
+
+    if (funding && monthlyNetBurn > 0) {
+      runway = funding / monthlyNetBurn;
+    } else if (funding && monthlyNetBurn <= 0) {
+      runway = Infinity;
+    }
+
     return {
       totalCosts,
       totalRevenue,
       netBurn,
       growthRate,
+      runway,
     };
-  }, [allItems]);
-
-  // Get selected scenario
-  const selectedScenario = scenarios?.find((s) => s.id === selectedScenarioId);
+  }, [allItems, selectedScenario]);
 
   // Update view type and regenerate stages
   const handleViewTypeChange = (value: "quarterly" | "monthly") => {
@@ -723,100 +719,67 @@ const Pipeline: React.FC = () => {
         {selectedScenarioId && (
           <div className="flex items-stretch gap-4">
             {/* Total Costs Card */}
-            <Card className="border-l-4 border-l-red-500 w-1/4">
-              <CardContent className="p-4 flex flex-col justify-between">
-                <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">
-                    Total Costs
-                  </div>
-                  <div className="text-xl font-bold text-red-600">
-                    {formatCurrency(totals.totalCosts)}
-                  </div>
-                </div>
-                <div className="h-6"></div> {/* Spacer to match badge height */}
-              </CardContent>
-            </Card>
+            <MatrixCard
+              value={formatCurrency(totals.totalCosts)}
+              label="Total Costs"
+              valueColor="text-red-600"
+            />
 
             {/* Total Revenue Card */}
-            <Card className="border-l-4 border-l-green-500 w-1/4">
-              <CardContent className="p-4 flex flex-col justify-between">
-                <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">
-                    Total Revenue
-                  </div>
-                  <div className="text-xl font-bold text-green-600">
-                    {formatCurrency(totals.totalRevenue)}
-                  </div>
-                </div>
-                <div className="h-6"></div> {/* Spacer to match badge height */}
-              </CardContent>
-            </Card>
+            <MatrixCard
+              value={formatCurrency(totals.totalRevenue)}
+              label="Total Revenue"
+              valueColor="text-green-600"
+            />
 
             {/* Net Burn Card */}
-            <Card
-              className={`border-l-4 w-1/4 ${
-                totals.netBurn < 0 ? "border-l-green-500" : "border-l-red-500"
-              }`}
-            >
-              <CardContent className="p-4 flex flex-col justify-between">
-                <div className="space-y-2">
-                  <div className="space-y-1">
-                    <div className="text-xs font-medium text-muted-foreground">
-                      Net Burn
-                    </div>
-                    <div
-                      className={`text-xl font-bold ${
-                        totals.netBurn < 0 ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {formatCurrency(Math.abs(totals.netBurn))}
-                    </div>
-                  </div>
-                  <Badge
-                    variant={totals.netBurn < 0 ? "default" : "destructive"}
-                    className="text-xs w-fit"
-                  >
-                    {totals.netBurn < 0 ? (
-                      <>
-                        <TrendingUp className="h-3 w-3 mr-1" />
-                        Profitable
-                      </>
-                    ) : (
-                      <>
-                        <TrendingDown className="h-3 w-3 mr-1" />
-                        Burning
-                      </>
-                    )}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
+            <MatrixCard
+              value={formatCurrency(Math.abs(totals.netBurn))}
+              label="Net Burn"
+              valueColor={
+                totals.netBurn < 0 ? "text-green-600" : "text-red-600"
+              }
+              badge={
+                <Badge
+                  variant={totals.netBurn < 0 ? "default" : "destructive"}
+                  className="text-xs"
+                >
+                  {totals.netBurn < 0 ? (
+                    <>
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      Profitable
+                    </>
+                  ) : (
+                    <>
+                      <TrendingDown className="h-3 w-3 mr-1" />
+                      Burning
+                    </>
+                  )}
+                </Badge>
+              }
+            />
 
             {/* Growth Rate Card */}
-            <Card
-              className={`border-l-4 w-1/4 ${
-                totals.growthRate >= 0
-                  ? "border-l-green-500"
-                  : "border-l-red-500"
-              }`}
-            >
-              <CardContent className="p-4 flex flex-col justify-between">
-                <div className="space-y-1">
-                  <div className="text-xs font-medium text-muted-foreground">
-                    Growth Rate
-                  </div>
-                  <div
-                    className={`text-xl font-bold ${
-                      totals.growthRate >= 0 ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    {totals.growthRate >= 0 ? "+" : ""}
-                    {totals.growthRate.toFixed(1)}%
-                  </div>
-                </div>
-                <div className="h-6"></div> {/* Spacer to match badge height */}
-              </CardContent>
-            </Card>
+            <MatrixCard
+              value={`${totals.growthRate >= 0 ? "+" : ""}${totals.growthRate.toFixed(1)}%`}
+              label="Growth Rate"
+              valueColor={
+                totals.growthRate >= 0 ? "text-green-600" : "text-red-600"
+              }
+              badge={
+                totals.growthRate >= 0 ? (
+                  <Badge variant="default" className="text-xs bg-green-500">
+                    <TrendingUp className="h-3 w-3 mr-1" />
+                    Growth
+                  </Badge>
+                ) : (
+                  <Badge variant="destructive" className="text-xs">
+                    <TrendingDown className="h-3 w-3 mr-1" />
+                    Decline
+                  </Badge>
+                )
+              }
+            />
           </div>
         )}
       </div>
@@ -882,7 +845,7 @@ const Pipeline: React.FC = () => {
           {/* DragOverlay */}
           <DragOverlay dropAnimation={null}>
             {activeItem ? (
-              <Card className="w-64 opacity-95 shadow-2xl border-2 border-primary/50 rotate-2">
+              <Card className="w-64 opacity-95 border-2 border-primary/50">
                 <CardContent className="p-3 bg-background">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
