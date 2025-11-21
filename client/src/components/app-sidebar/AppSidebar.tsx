@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  IconDashboard,
+  IconHome,
   IconFileText,
   IconRoute,
   IconInnerShadowTop,
@@ -18,16 +18,11 @@ import {
 } from "@/components/ui/sidebar";
 
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
   navMain: [
     {
-      title: "Overheads",
+      title: "Home",
       url: "/dashboard/overheads",
-      icon: IconDashboard,
+      icon: IconHome,
     },
     {
       title: "Scenario",
@@ -64,7 +59,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={data.navMain} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser />
       </SidebarFooter>
     </Sidebar>
   );

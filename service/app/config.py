@@ -36,14 +36,19 @@ class Settings(BaseModel):
 
 settings = Settings()
 
-TORTOISE_ORM:dict = {
-        "connections":{
-            "default":settings.DATABASE_URL
-        },
-        "apps":{
-            "models": {
-                "models": ["app.models.user", "aerich.models"],
-                "default_connection": "default",
-            }
+TORTOISE_ORM: dict = {
+    "connections": {
+        "default": settings.DATABASE_URL
+    },
+    "apps": {
+        "models": {
+            "models": [
+                "app.models.user",
+                "app.models.scenario",
+                "app.models.cost",
+                "aerich.models"
+            ],
+            "default_connection": "default",
         }
     }
+}
