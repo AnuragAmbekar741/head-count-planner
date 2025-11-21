@@ -1,19 +1,33 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
-import { ArrowRight, TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown } from "lucide-react";
 import { TokenCookies } from "@/utils/cookie";
+import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
+import { useGoogleAuth } from "@/hooks/auth/useGoogleAuth";
+import { Loader2 } from "lucide-react";
 
 export default function Landing() {
   const navigate = useNavigate();
   const isAuthenticated = TokenCookies.hasTokens();
+  const { mutate: login, isPending } = useGoogleAuth();
 
-  const handleKnowIt = () => {
-    if (isAuthenticated) {
-      navigate({ to: "/dashboard/overheads" });
-    } else {
-      navigate({ to: "/auth" });
+  const handleGoogleLogin = (credentialResponse: CredentialResponse) => {
+    if (credentialResponse.credential) {
+      login(
+        { idToken: credentialResponse.credential },
+        {
+          onSuccess: () => {
+            navigate({ to: "/dashboard/overheads" });
+          },
+        }
+      );
     }
   };
+
+  // If already authenticated, redirect to dashboard
+  if (isAuthenticated) {
+    navigate({ to: "/dashboard/overheads" });
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-4">
@@ -27,10 +41,24 @@ export default function Landing() {
               or break it ?
             </span>
             <br />
-            <Button className="text-lg font-bold w-1/5" onClick={handleKnowIt}>
-              Know it
-              <ArrowRight className="ml-2" />
-            </Button>
+            {isPending ? (
+              <div className="flex items-center justify-center gap-3 pt-4">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <span className="text-lg font-medium text-muted-foreground">
+                  Signing you in...
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center pt-6">
+                <GoogleLogin
+                  onSuccess={handleGoogleLogin}
+                  theme="filled_black"
+                  size="large"
+                  text="continue_with"
+                  shape="rectangular"
+                />
+              </div>
+            )}
           </h1>
         </div>
 

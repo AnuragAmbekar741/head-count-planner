@@ -1,8 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { requireGuest } from "@/utils/route-guard";
-import Auth from "@/views/auth/Auth";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/auth")({
-  beforeLoad: requireGuest,
-  component: Auth,
+  beforeLoad: () => {
+    throw redirect({ to: "/" });
+  },
 });
