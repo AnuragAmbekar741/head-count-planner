@@ -34,11 +34,22 @@ export const ScenarioMetrics: React.FC<ScenarioMetricsProps> = ({
     revenueItems
   );
 
-  // Calculate totals (annual)
-  const totalCosts = metrics.annualBurnRate;
-  const totalRevenue = metrics.monthlyRevenue * 12; // Annual revenue
+  // Calculate totals
+  // For annual view: annualBurnRate is first-year total
+  // For monthly view: annualBurnRate is total for selected months
+  const totalCosts = metrics.annualBurnRate ?? 0;
+
+  // For annual view: annualRevenue is first-year total
+  // For monthly view: annualRevenue is total for selected months
+  const totalRevenue =
+    viewType === "monthly"
+      ? (metrics.annualRevenue ?? 0) // Total for selected months
+      : (metrics.monthlyRevenue ?? 0) * 12; // Annual projection
+
   const netBurn =
-    viewType === "annual" ? metrics.netBurnRate * 12 : metrics.netBurnRate;
+    viewType === "annual"
+      ? (metrics.netBurnRate ?? 0) * 12
+      : (metrics.netBurnRate ?? 0);
 
   return (
     <div className="flex items-stretch gap-4 px-6">

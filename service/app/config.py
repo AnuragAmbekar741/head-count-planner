@@ -32,6 +32,12 @@ class Settings(BaseModel):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 60
+    
+    # OpenAI LLM Configuration
+    OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY")
+    OPENAI_MODEL: str = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+    OPENAI_TEMPERATURE: float = float(os.environ.get("OPENAI_TEMPERATURE", "0.7"))
+
     # Tortoise ORM Configuration
 
 settings = Settings()

@@ -530,13 +530,35 @@ const Pipeline: React.FC = () => {
 
   // Calculate totals
   const totals = React.useMemo(() => {
+    // Helper to calculate first-year value based on startAt/endsAt
+    const calculateFirstYearValue = (item: PipelineItem): number => {
+      const monthly = item.amount; // Already monthly from transformation
+      const yearStartMonth = 1;
+      const yearEndMonth = 12;
+
+      // Calculate active months in first year
+      const firstActive = Math.max(yearStartMonth, item.startAt);
+      const lastActive =
+        item.endsAt !== null
+          ? Math.min(yearEndMonth, item.endsAt)
+          : yearEndMonth;
+
+      // If not active in first year at all
+      if (firstActive > yearEndMonth || lastActive < yearStartMonth) {
+        return 0;
+      }
+
+      const activeMonths = lastActive - firstActive + 1;
+      return monthly * activeMonths;
+    };
+
     const totalCosts = allItems
       .filter((item) => item.type === "cost" && item.isActive)
-      .reduce((sum, item) => sum + item.amount * 12, 0); // Annual cost
+      .reduce((sum, item) => sum + calculateFirstYearValue(item), 0);
 
     const totalRevenue = allItems
       .filter((item) => item.type === "revenue" && item.isActive)
-      .reduce((sum, item) => sum + item.amount * 12, 0); // Annual revenue
+      .reduce((sum, item) => sum + calculateFirstYearValue(item), 0);
 
     const netBurn = totalCosts - totalRevenue;
     const growthRate =
