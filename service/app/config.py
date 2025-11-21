@@ -46,6 +46,7 @@ TORTOISE_ORM: dict = {
                 "app.models.user",
                 "app.models.scenario",
                 "app.models.cost",
+                "app.models.revenue",
                 "aerich.models"
             ],
             "default_connection": "default",

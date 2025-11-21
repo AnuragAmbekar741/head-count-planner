@@ -6,6 +6,19 @@ export type CostFrequency =
   | "ONE_TIME";
 export type CostCategory = "Engineering" | "Office" | "Tools" | string;
 
+export interface RevenueItem {
+  id: string;
+  title: string;
+  category: string | null;
+  startAt: number;
+  endsAt: number | null;
+  annualValue: number;
+  frequency: CostFrequency; // Reuse same frequency type
+  isActive: boolean;
+  scenarioId: string;
+  type: "revenue"; // Add type discriminator
+}
+
 export interface CostItem {
   id: string;
   title: string;
@@ -16,7 +29,10 @@ export interface CostItem {
   frequency: CostFrequency; // how that annual amount is charged
   isActive: boolean; // Add this field
   scenarioId: string; // which scenario this belongs to
+  type?: "cost"; // Add optional type discriminator
 }
+
+export type TableItem = CostItem | RevenueItem;
 
 export const costs: CostItem[] = [
   {

@@ -4,6 +4,8 @@ import {
   IconLayoutColumns,
   IconPlus,
   IconTrendingUp,
+  IconChevronLeft,
+  IconChevronRight,
 } from "@tabler/icons-react";
 import {
   type ColumnDef,
@@ -62,8 +64,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { CostItem } from "@/data/cost-item";
 import {
   Popover,
   PopoverContent,
@@ -72,28 +72,9 @@ import {
 import { AddCostModal } from "@/components/modal/AddCostModal";
 import { useState } from "react";
 import { formatCurrency } from "@/utils/number-format";
-
-// Add this utility function near the top, after imports
-function formatMonthNumber(monthNumber: number): string {
-  // Convert month number (1-12) to month name
-  const monthNames = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
-
-  const monthIndex = (monthNumber - 1) % 12;
-  return monthNames[monthIndex];
-}
+import type { TableItem } from "@/data/cost-item";
+import { TrendingUp, TrendingDown } from "lucide-react";
+import { formatMonthNumber } from "@/utils/month-utils";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const schema = z.object({
@@ -119,7 +100,7 @@ export function DataTable({
   onSelectedMonthsChange, // Add this prop
   scenarioId, // Add this prop
 }: {
-  data: CostItem[];
+  data: TableItem[]; // Change from CostItem[] to TableItem[]
   outlineViewType?: "monthly" | "annual";
   onOutlineViewTypeChange?: (value: "monthly" | "annual") => void;
   onSelectedMonthsChange?: (months: number[]) => void; // Add this prop
@@ -132,7 +113,12 @@ export function DataTable({
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   );
-  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [sorting, setSorting] = React.useState<SortingState>([
+    {
+      id: "startAt",
+      desc: false, // Sort ascending (earliest month first)
+    },
+  ]);
   const [grouping, setGrouping] = React.useState<GroupingState>([]); // Add this state
   const [pagination, setPagination] = React.useState({
     pageIndex: 0,
@@ -161,65 +147,14 @@ export function DataTable({
 
   const updateCostMutation = useUpdateCost(); // Add this hook
 
-  // Update data when initialData changes
   React.useEffect(() => {
     setData(initialData);
   }, [initialData]);
 
-  // Handle status toggle
-  const handleStatusToggle = (costId: string, currentStatus: boolean) => {
-    updateCostMutation.mutate(
-      {
-        costId,
-        data: {
-          is_active: !currentStatus,
-        },
-      },
-      {
-        onSuccess: (updatedCost) => {
-          // Update local data state
-          setData((prevData) =>
-            prevData.map((item) =>
-              item.id === costId
-                ? { ...item, isActive: updatedCost.is_active }
-                : item
-            )
-          );
-        },
-      }
-    );
-  };
-
-  // Calculate months for outline table - only current year (1-12)
   const currentYearMonths = React.useMemo(() => {
-    return Array.from({ length: 12 }, (_, i) => i + 1); // [1, 2, 3, ..., 12]
+    return Array.from({ length: 12 }, (_, i) => i + 1);
   }, []);
 
-  // Calculate months/years for time series view - Memoize this (keep existing logic)
-  const { months, years } = React.useMemo(() => {
-    if (!data || data.length === 0) return { months: [], years: [] };
-
-    const allMonths = new Set<number>();
-    const allYears = new Set<number>();
-
-    data.forEach((item) => {
-      const startMonth = item.startAt;
-      const endMonth = item.endsAt || 24; // Default to 24 months if null
-
-      for (let month = startMonth; month <= endMonth; month++) {
-        allMonths.add(month);
-        const year = Math.ceil(month / 12);
-        allYears.add(year);
-      }
-    });
-
-    return {
-      months: Array.from(allMonths).sort((a, b) => a - b),
-      years: Array.from(allYears).sort((a, b) => a - b),
-    };
-  }, [data]);
-
-  // Use a ref to track if we've initialized for the current view type
   const initializedForViewType = React.useRef<string>("");
 
   // Initialize selected months with current year months (1-12)
@@ -250,7 +185,7 @@ export function DataTable({
   }, [selectedMonths, onSelectedMonthsChange]);
 
   // Calculate monthly value for selected months
-  const calculateMonthlyValueForSelectedMonths = (item: CostItem): number => {
+  const calculateMonthlyValueForSelectedMonths = (item: TableItem): number => {
     if (selectedMonths.length === 0) return 0;
 
     return selectedMonths.reduce((sum, month) => {
@@ -260,7 +195,7 @@ export function DataTable({
 
   // Calculate cost for a specific time period
   const calculateCostForPeriod = (
-    item: CostItem,
+    item: TableItem,
     period: number,
     view: "monthly" | "yearly"
   ) => {
@@ -323,7 +258,7 @@ export function DataTable({
   };
 
   // Helper function to check if cost is active in selected months
-  const isCostActiveInSelectedMonths = (item: CostItem): boolean => {
+  const isCostActiveInSelectedMonths = (item: TableItem): boolean => {
     // If not active in database, return false
     if (!item.isActive) return false;
 
@@ -350,12 +285,16 @@ export function DataTable({
   };
 
   // Helper function to calculate grouped data
-  const getGroupedData = () => {
-    if (grouping.length === 0) return null;
-
+  const getGroupedData = (): Array<{
+    category: string;
+    items: TableItem[];
+    totalValue: number;
+    hasActive: boolean;
+    hasInactive: boolean;
+  }> => {
     const grouped = data.reduce(
       (acc, item) => {
-        const category = item.category;
+        const category = item.category || "Uncategorized";
         if (!acc[category]) {
           acc[category] = {
             category,
@@ -374,7 +313,13 @@ export function DataTable({
             ? item.annualValue
             : calculateMonthlyValueForSelectedMonths(item);
 
-        acc[category].totalValue += itemValue;
+        // For revenue, subtract from total (it's income)
+        // For cost, add to total (it's expense)
+        if (item.type === "revenue") {
+          acc[category].totalValue -= itemValue; // Revenue reduces total
+        } else {
+          acc[category].totalValue += itemValue; // Cost increases total
+        }
 
         // Check status
         const isActive = isCostActiveInSelectedMonths(item);
@@ -390,7 +335,7 @@ export function DataTable({
         string,
         {
           category: string;
-          items: CostItem[];
+          items: TableItem[];
           totalValue: number;
           hasActive: boolean;
           hasInactive: boolean;
@@ -402,7 +347,7 @@ export function DataTable({
   };
 
   // Define columns with dynamic value based on outlineViewType
-  const columns: ColumnDef<CostItem>[] = React.useMemo(
+  const columns: ColumnDef<TableItem>[] = React.useMemo(
     () => [
       {
         id: "select",
@@ -433,6 +378,32 @@ export function DataTable({
         enableHiding: false,
       },
       {
+        id: "type",
+        header: "Type",
+        cell: ({ row }) => {
+          const item = row.original;
+          const isRevenue = item.type === "revenue";
+          return (
+            <Badge
+              variant={isRevenue ? "default" : "secondary"}
+              className={isRevenue ? "bg-green-500" : ""}
+            >
+              {isRevenue ? (
+                <>
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  Revenue
+                </>
+              ) : (
+                <>
+                  <TrendingDown className="h-3 w-3 mr-1" />
+                  Cost
+                </>
+              )}
+            </Badge>
+          );
+        },
+      },
+      {
         accessorKey: "title",
         header: "Title",
         cell: ({ row }) => {
@@ -455,14 +426,31 @@ export function DataTable({
         cell: ({ row }) => {
           // Calculate value based on toggle
           let value: number;
+          const item = row.original;
+          const isRevenue = item.type === "revenue";
+
           if (outlineViewType === "annual") {
-            value = row.original.annualValue;
+            value = item.annualValue;
           } else {
             // For monthly view, sum up costs for selected months
-            value = calculateMonthlyValueForSelectedMonths(row.original);
+            value = calculateMonthlyValueForSelectedMonths(item);
           }
 
-          return <div className="text-right">{formatCurrency(value)}</div>;
+          return (
+            <div className="text-right">
+              <Badge
+                variant={isRevenue ? "default" : "destructive"}
+                className={`px-1.5 ${
+                  isRevenue
+                    ? "bg-green-500 text-black"
+                    : "bg-red-500 text-white"
+                }`}
+              >
+                {isRevenue ? "+" : "-"}
+                {formatCurrency(value)}
+              </Badge>
+            </div>
+          );
         },
       },
       {
@@ -490,24 +478,6 @@ export function DataTable({
               N/A
             </Badge>
           ),
-      },
-      {
-        accessorKey: "isActive",
-        header: "Status",
-        cell: ({ row }) => {
-          const isActive = isCostActiveInSelectedMonths(row.original);
-          return (
-            <Badge
-              variant={isActive ? "default" : "secondary"}
-              className="px-1.5 cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() =>
-                handleStatusToggle(row.original.id, row.original.isActive)
-              }
-            >
-              {isActive ? "Active 🔥" : "Inactive"}
-            </Badge>
-          );
-        },
       },
     ],
     [outlineViewType, updateCostMutation, selectedMonths] // Add selectedMonths to dependencies
@@ -705,7 +675,7 @@ export function DataTable({
               onClick={() => setIsAddCostModalOpen(true)}
             >
               <IconPlus />
-              <span className="hidden lg:inline">Add Cost</span>
+              <span className="hidden lg:inline">Add</span>
             </Button>
           </div>
         </div>
@@ -721,45 +691,69 @@ export function DataTable({
               <>
                 <TableHeader className="bg-muted sticky top-0 z-10">
                   <TableRow>
-                    <TableHead className="w-1/3">Category</TableHead>
-                    <TableHead className="w-1/3 text-right">Value</TableHead>
-                    <TableHead className="w-1/3 text-center">Status</TableHead>
+                    <TableHead className="w-1/2">Category</TableHead>
+                    <TableHead className="w-1/2 text-right">Value</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {groupedData.map((group) => {
-                    const statusText =
-                      group.hasActive && group.hasInactive
-                        ? "Mixed"
-                        : group.hasActive
-                          ? "Active 🔥"
-                          : "Inactive";
-                    const statusVariant =
-                      group.hasActive && !group.hasInactive
-                        ? "default"
-                        : "secondary";
+                  {groupedData.map(
+                    (group: {
+                      category: string;
+                      items: TableItem[];
+                      totalValue: number;
+                      hasActive: boolean;
+                      hasInactive: boolean;
+                    }) => {
+                      return (
+                        <TableRow key={group.category} className="font-medium">
+                          <TableCell className="w-1/2">
+                            <Badge
+                              variant="outline"
+                              className="text-muted-foreground px-1.5"
+                            >
+                              {group.category}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="w-1/2 text-right">
+                            {(() => {
+                              // Determine if this group has revenue or cost items
+                              const hasRevenue = group.items.some(
+                                (item) => item.type === "revenue"
+                              );
+                              const hasCost = group.items.some(
+                                (item) => item.type === "cost"
+                              );
+                              const isRevenue = hasRevenue && !hasCost;
+                              const isCost = hasCost && !hasRevenue;
 
-                    return (
-                      <TableRow key={group.category} className="font-medium">
-                        <TableCell className="w-1/3">
-                          <Badge
-                            variant="outline"
-                            className="text-muted-foreground px-1.5"
-                          >
-                            {group.category}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="w-1/3 text-right">
-                          {formatCurrency(group.totalValue)}
-                        </TableCell>
-                        <TableCell className="w-1/3 text-center">
-                          <Badge variant={statusVariant} className="px-1.5">
-                            {statusText}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                              // Use totalValue sign as fallback if mixed
+                              const isPositive = group.totalValue >= 0;
+                              const badgeVariant =
+                                isRevenue || (isPositive && !isCost)
+                                  ? "default"
+                                  : "destructive";
+                              const badgeClassName =
+                                isRevenue || (isPositive && !isCost)
+                                  ? "bg-green-500 text-black px-1.5"
+                                  : "bg-red-500 text-white px-1.5";
+
+                              return (
+                                <Badge
+                                  variant={badgeVariant}
+                                  className={badgeClassName}
+                                >
+                                  {isRevenue || (isPositive && !isCost)
+                                    ? "+"
+                                    : "-"}
+                                  {formatCurrency(Math.abs(group.totalValue))}
+                                </Badge>
+                              );
+                            })()}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+                  )}
                 </TableBody>
               </>
             ) : (
@@ -822,130 +816,59 @@ export function DataTable({
     );
   };
 
-  // Render time series table
-  const renderTimeSeriesTable = (view: "monthly" | "yearly") => {
-    const periods = view === "monthly" ? months : years;
-
-    return (
-      <div className="overflow-x-auto rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="sticky left-0 z-10 bg-background">
-                Cost Item
-              </TableHead>
-              <TableHead className="sticky left-0 z-10 bg-background">
-                Category
-              </TableHead>
-              {periods.map((period) => (
-                <TableHead key={period} className="text-center min-w-[100px]">
-                  {view === "monthly" ? `Month ${period}` : `Year ${period}`}
-                </TableHead>
-              ))}
-              <TableHead className="text-right">Total</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((item) => {
-              const total = periods.reduce(
-                (sum, period) =>
-                  sum + calculateCostForPeriod(item, period, view),
-                0
-              );
-
-              return (
-                <TableRow key={item.id}>
-                  <TableCell className="sticky left-0 z-10 bg-background font-medium">
-                    {item.title}
-                  </TableCell>
-                  <TableCell className="sticky left-0 z-10 bg-background">
-                    <Badge variant="outline">{item.category}</Badge>
-                  </TableCell>
-                  {periods.map((period) => {
-                    const cost = calculateCostForPeriod(item, period, view);
-                    return (
-                      <TableCell key={period} className="text-right">
-                        {cost > 0 ? formatCurrency(cost) : "-"}
-                      </TableCell>
-                    );
-                  })}
-                  <TableCell className="text-right font-medium">
-                    {formatCurrency(total)}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-            {/* Total Row */}
-            <TableRow className="bg-muted/50 font-semibold">
-              <TableCell colSpan={2} className="sticky left-0 z-10 bg-muted/50">
-                Total
-              </TableCell>
-              {periods.map((period) => {
-                const periodTotal = data.reduce(
-                  (sum, item) =>
-                    sum + calculateCostForPeriod(item, period, view),
-                  0
-                );
-                return (
-                  <TableCell key={period} className="text-right">
-                    {formatCurrency(periodTotal)}
-                  </TableCell>
-                );
-              })}
-              <TableCell className="text-right">
-                {formatCurrency(
-                  data.reduce((sum, item) => {
-                    return (
-                      sum +
-                      periods.reduce(
-                        (itemSum, period) =>
-                          itemSum + calculateCostForPeriod(item, period, view),
-                        0
-                      )
-                    );
-                  }, 0)
-                )}
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-      </div>
-    );
-  };
-
   return (
     <div className="w-full flex-col justify-start gap-6">
       {/* Outline Table - Always Visible */}
-      <div className="space-y-4 px-4 lg:px-6">{renderOutlineTable()}</div>
+      <div className="space-y-4 px-4 lg:px-6">
+        {renderOutlineTable()}
 
-      {/* Monthly/Yearly Tabs - Between Outline and Timeline */}
-      <Tabs
-        defaultValue="monthly"
-        className="w-full flex-col justify-start gap-6"
-      >
-        <div className="px-4 mt-8 lg:px-6">
-          <TabsList className="**:data-[slot=badge]:bg-muted-foreground/30 **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:px-1">
-            <TabsTrigger value="monthly">Monthly</TabsTrigger>
-            <TabsTrigger value="yearly">Yearly</TabsTrigger>
-          </TabsList>
+        {/* Pagination Controls */}
+        <div className="flex items-center justify-between py-4">
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-muted-foreground">
+              Showing{" "}
+              {table.getState().pagination.pageIndex *
+                table.getState().pagination.pageSize +
+                1}{" "}
+              to{" "}
+              {Math.min(
+                (table.getState().pagination.pageIndex + 1) *
+                  table.getState().pagination.pageSize,
+                table.getFilteredRowModel().rows.length
+              )}{" "}
+              of {table.getFilteredRowModel().rows.length} results
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              <IconChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+            <div className="flex items-center gap-1">
+              <span className="text-sm text-muted-foreground">Page</span>
+              <span className="text-sm font-medium">
+                {table.getState().pagination.pageIndex + 1} of{" "}
+                {table.getPageCount()}
+              </span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Next
+              <IconChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
+      </div>
 
-        {/* Monthly Timeline Table */}
-        <TabsContent
-          value="monthly"
-          className="relative flex flex-col gap-6 overflow-auto px-4 lg:px-6"
-        >
-          <div className="space-y-2">{renderTimeSeriesTable("monthly")}</div>
-        </TabsContent>
-
-        {/* Yearly Timeline Table */}
-        <TabsContent
-          value="yearly"
-          className="relative flex flex-col gap-6 overflow-auto px-4 lg:px-6"
-        >
-          <div>{renderTimeSeriesTable("yearly")}</div>
-        </TabsContent>
-      </Tabs>
       {scenarioId && (
         <AddCostModal
           open={isAddCostModalOpen}
@@ -957,7 +880,7 @@ export function DataTable({
   );
 }
 
-function TableCellViewer({ item }: { item: CostItem }) {
+function TableCellViewer({ item }: { item: TableItem }) {
   const isMobile = useIsMobile();
 
   return (
@@ -970,18 +893,26 @@ function TableCellViewer({ item }: { item: CostItem }) {
       <DrawerContent>
         <DrawerHeader className="gap-1">
           <DrawerTitle>{item.title}</DrawerTitle>
-          <DrawerDescription>Edit cost item details</DrawerDescription>
+          <DrawerDescription>
+            Edit {item.type === "revenue" ? "revenue" : "cost"} item details
+          </DrawerDescription>
         </DrawerHeader>
         <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
           {!isMobile && (
             <>
               <div className="grid gap-2">
                 <div className="flex gap-2 leading-none font-medium">
-                  Cost Item Information
-                  <IconTrendingUp className="size-4" />
+                  {item.type === "revenue" ? "Revenue" : "Cost"} Item
+                  Information
+                  {item.type === "revenue" ? (
+                    <IconTrendingUp className="size-4" />
+                  ) : (
+                    <IconTrendingUp className="size-4" />
+                  )}
                 </div>
                 <div className="text-muted-foreground">
-                  Update the details for this cost item below.
+                  Update the details for this{" "}
+                  {item.type === "revenue" ? "revenue" : "cost"} item below.
                 </div>
               </div>
               <Separator />
@@ -995,7 +926,7 @@ function TableCellViewer({ item }: { item: CostItem }) {
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-3">
                 <Label htmlFor="category">Category</Label>
-                <Select defaultValue={item.category}>
+                <Select defaultValue={item.category || ""}>
                   <SelectTrigger id="category" className="w-full">
                     <SelectValue placeholder="Select a category" />
                   </SelectTrigger>

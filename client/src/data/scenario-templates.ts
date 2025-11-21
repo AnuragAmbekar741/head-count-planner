@@ -1,4 +1,5 @@
 import { CostFrequency, type CostFrequencyType } from "@/api/cost";
+import { RevenueFrequency, type RevenueFrequencyType } from "@/api/revenue";
 
 export interface TemplateCost {
   title: string;
@@ -9,10 +10,20 @@ export interface TemplateCost {
   freq: CostFrequencyType;
 }
 
+export interface TemplateRevenue {
+  title: string;
+  value: string;
+  category?: string;
+  starts_at: string;
+  end_at: string;
+  freq: RevenueFrequencyType;
+}
+
 export interface TeamTemplate {
   name: string;
   description: string;
   costs: TemplateCost[];
+  revenues?: TemplateRevenue[]; // Add optional revenues
 }
 
 export const TEAM_TEMPLATES: TeamTemplate[] = [
@@ -59,6 +70,24 @@ export const TEAM_TEMPLATES: TeamTemplate[] = [
         starts_at: "1",
         end_at: "",
         freq: CostFrequency.MONTHLY,
+      },
+    ],
+    revenues: [
+      {
+        title: "Product Sales",
+        value: "240000", // $20K/month annualized
+        category: "Sales",
+        starts_at: "3", // Starts in month 3
+        end_at: "",
+        freq: RevenueFrequency.MONTHLY,
+      },
+      {
+        title: "Subscription Revenue",
+        value: "120000", // $10K/month annualized
+        category: "Sales",
+        starts_at: "6", // Starts in month 6
+        end_at: "",
+        freq: RevenueFrequency.MONTHLY,
       },
     ],
   },
@@ -213,6 +242,24 @@ export const TEAM_TEMPLATES: TeamTemplate[] = [
         starts_at: "1",
         end_at: "",
         freq: CostFrequency.MONTHLY,
+      },
+    ],
+    revenues: [
+      {
+        title: "Enterprise Sales",
+        value: "600000", // $50K/month annualized
+        category: "Sales",
+        starts_at: "2",
+        end_at: "",
+        freq: RevenueFrequency.MONTHLY,
+      },
+      {
+        title: "SMB Sales",
+        value: "240000", // $20K/month annualized
+        category: "Sales",
+        starts_at: "4",
+        end_at: "",
+        freq: RevenueFrequency.MONTHLY,
       },
     ],
   },
