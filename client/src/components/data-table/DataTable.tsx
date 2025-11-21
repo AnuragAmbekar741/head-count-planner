@@ -1,4 +1,4 @@
-import * as React from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   IconChevronDown,
   IconLayoutColumns,
@@ -70,7 +70,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { AddCostModal } from "@/components/modal/AddCostModal";
-import { useState } from "react";
 import { formatCurrency } from "@/utils/number-format";
 import type { TableItem } from "@/data/cost-item";
 import { TrendingUp, TrendingDown } from "lucide-react";
@@ -106,32 +105,29 @@ export function DataTable({
   onSelectedMonthsChange?: (months: number[]) => void; // Add this prop
   scenarioId?: string; // Add this prop
 }) {
-  const [data, setData] = React.useState(() => initialData);
-  const [rowSelection, setRowSelection] = React.useState({});
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({});
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  );
-  const [sorting, setSorting] = React.useState<SortingState>([
+  const [data, setData] = useState(() => initialData);
+  const [rowSelection, setRowSelection] = useState({});
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [sorting, setSorting] = useState<SortingState>([
     {
       id: "startAt",
       desc: false, // Sort ascending (earliest month first)
     },
   ]);
-  const [grouping, setGrouping] = React.useState<GroupingState>([]); // Add this state
-  const [pagination, setPagination] = React.useState({
+  const [grouping, setGrouping] = useState<GroupingState>([]); // Add this state
+  const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 10,
   });
-  const [outlineViewType, setOutlineViewType] = React.useState<
-    "monthly" | "annual"
-  >(externalOutlineViewType || "annual");
-  const [selectedMonths, setSelectedMonths] = React.useState<number[]>([]); // Add this state
+  const [outlineViewType, setOutlineViewType] = useState<"monthly" | "annual">(
+    externalOutlineViewType || "annual"
+  );
+  const [selectedMonths, setSelectedMonths] = useState<number[]>([]); // Add this state
   const [isAddCostModalOpen, setIsAddCostModalOpen] = useState(false);
 
   // Sync with external state if provided
-  React.useEffect(() => {
+  useEffect(() => {
     if (externalOutlineViewType !== undefined) {
       setOutlineViewType(externalOutlineViewType);
     }
@@ -147,18 +143,18 @@ export function DataTable({
 
   const updateCostMutation = useUpdateCost(); // Add this hook
 
-  React.useEffect(() => {
+  useEffect(() => {
     setData(initialData);
   }, [initialData]);
 
-  const currentYearMonths = React.useMemo(() => {
+  const currentYearMonths = useMemo(() => {
     return Array.from({ length: 12 }, (_, i) => i + 1);
   }, []);
 
-  const initializedForViewType = React.useRef<string>("");
+  const initializedForViewType = useRef<string>("");
 
   // Initialize selected months with current year months (1-12)
-  React.useEffect(() => {
+  useEffect(() => {
     const viewKey = `${outlineViewType}-current-year`;
 
     if (initializedForViewType.current === viewKey) {
@@ -172,89 +168,60 @@ export function DataTable({
     }
 
     if (outlineViewType === "monthly") {
-      setSelectedMonths([...currentYearMonths]);
+      // Select only January (month 1) when switching to monthly view
+      setSelectedMonths([1]);
       initializedForViewType.current = viewKey;
     }
   }, [outlineViewType, currentYearMonths]);
 
   // Notify parent when selectedMonths changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (onSelectedMonthsChange) {
       onSelectedMonthsChange(selectedMonths);
     }
   }, [selectedMonths, onSelectedMonthsChange]);
 
+  // Helper to calculate first-year value based on startAt/endsAt (same as Pipeline)
+  const calculateFirstYearValue = (item: TableItem): number => {
+    if (!item.isActive) return 0;
+
+    // Treat annualValue as annual rate, convert to monthly
+    const monthly = item.annualValue / 12;
+    const yearStartMonth = 1;
+    const yearEndMonth = 12;
+
+    // Calculate active months in first year
+    const firstActive = Math.max(yearStartMonth, item.startAt);
+    const lastActive =
+      item.endsAt !== null ? Math.min(yearEndMonth, item.endsAt) : yearEndMonth;
+
+    // If not active in first year at all
+    if (firstActive > yearEndMonth || lastActive < yearStartMonth) {
+      return 0;
+    }
+
+    const activeMonths = lastActive - firstActive + 1;
+    return monthly * activeMonths;
+  };
+
   // Calculate monthly value for selected months
   const calculateMonthlyValueForSelectedMonths = (item: TableItem): number => {
     if (selectedMonths.length === 0) return 0;
+    if (!item.isActive) return 0;
 
-    return selectedMonths.reduce((sum, month) => {
-      return sum + calculateCostForPeriod(item, month, "monthly");
-    }, 0);
-  };
+    // Use same logic: treat annualValue as annual rate, convert to monthly
+    const monthly = item.annualValue / 12;
 
-  // Calculate cost for a specific time period
-  const calculateCostForPeriod = (
-    item: TableItem,
-    period: number,
-    view: "monthly" | "yearly"
-  ) => {
-    if (period < item.startAt) return 0;
-    if (item.endsAt !== null && period > item.endsAt) return 0;
+    // Count how many of the selected months are within the item's active period
+    const activeMonthsInSelection = selectedMonths.filter((month) => {
+      // Check if month is after startAt
+      if (month < item.startAt) return false;
+      // Check if month is before endsAt (or endsAt is null)
+      if (item.endsAt !== null && month > item.endsAt) return false;
+      return true;
+    }).length;
 
-    if (view === "monthly") {
-      // Calculate monthly cost based on frequency
-      switch (item.frequency) {
-        case "MONTHLY":
-          return item.annualValue / 12;
-        case "QUARTERLY":
-          return period % 3 === item.startAt % 3 ? item.annualValue / 4 : 0;
-        case "YEARLY":
-          return period % 12 === item.startAt % 12 ? item.annualValue : 0;
-        case "ONE_TIME":
-          return period === item.startAt ? item.annualValue : 0;
-        default:
-          return item.annualValue / 12;
-      }
-    } else {
-      // Calculate yearly cost
-      const yearStartMonth = (period - 1) * 12 + 1;
-      const yearEndMonth = period * 12;
-
-      if (
-        item.startAt > yearEndMonth ||
-        (item.endsAt !== null && item.endsAt < yearStartMonth)
-      ) {
-        return 0;
-      }
-
-      switch (item.frequency) {
-        case "MONTHLY": {
-          const activeMonths =
-            Math.min(yearEndMonth, item.endsAt || yearEndMonth) -
-            Math.max(yearStartMonth, item.startAt) +
-            1;
-          return (item.annualValue / 12) * activeMonths;
-        }
-        case "QUARTERLY": {
-          const quartersInYear =
-            Math.floor(
-              (Math.min(yearEndMonth, item.endsAt || yearEndMonth) -
-                Math.max(yearStartMonth, item.startAt)) /
-                3
-            ) + 1;
-          return (item.annualValue / 4) * quartersInYear;
-        }
-        case "YEARLY":
-          return item.annualValue;
-        case "ONE_TIME":
-          return item.startAt >= yearStartMonth && item.startAt <= yearEndMonth
-            ? item.annualValue
-            : 0;
-        default:
-          return item.annualValue;
-      }
-    }
+    return monthly * activeMonthsInSelection;
   };
 
   // Helper function to check if cost is active in selected months
@@ -307,10 +274,10 @@ export function DataTable({
 
         acc[category].items.push(item);
 
-        // Calculate value for this item
+        // Calculate value for this item - use same logic for both views
         const itemValue =
           outlineViewType === "annual"
-            ? item.annualValue
+            ? calculateFirstYearValue(item)
             : calculateMonthlyValueForSelectedMonths(item);
 
         // For revenue, subtract from total (it's income)
@@ -347,7 +314,7 @@ export function DataTable({
   };
 
   // Define columns with dynamic value based on outlineViewType
-  const columns: ColumnDef<TableItem>[] = React.useMemo(
+  const columns: ColumnDef<TableItem>[] = useMemo(
     () => [
       {
         id: "select",
@@ -424,17 +391,14 @@ export function DataTable({
         accessorKey: "annualValue",
         header: () => <div className="w-full text-right">Value</div>,
         cell: ({ row }) => {
-          // Calculate value based on toggle
-          let value: number;
           const item = row.original;
           const isRevenue = item.type === "revenue";
 
-          if (outlineViewType === "annual") {
-            value = item.annualValue;
-          } else {
-            // For monthly view, sum up costs for selected months
-            value = calculateMonthlyValueForSelectedMonths(item);
-          }
+          // Calculate value based on toggle
+          const value =
+            outlineViewType === "annual"
+              ? calculateFirstYearValue(item)
+              : calculateMonthlyValueForSelectedMonths(item);
 
           return (
             <div className="text-right">

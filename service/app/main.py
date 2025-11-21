@@ -8,6 +8,7 @@ from app.router.costs import router as costs_router
 from app.router.scenarios import router as scenarios_router
 from app.router.revenues import router as revenues_router
 from app.config import settings, TORTOISE_ORM
+from app.router.llm import router as llm_router
 
 # Create FastAPI application
 app = FastAPI(
@@ -47,6 +48,9 @@ app.include_router(scenarios_router)
 
 # Revenue routes - all require authentication
 app.include_router(revenues_router)
+
+# LLM routes - all require authentication
+app.include_router(llm_router)
 
 # ============================================================================
 # DATABASE CONFIGURATION

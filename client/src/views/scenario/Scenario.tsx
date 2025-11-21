@@ -43,6 +43,7 @@ import { useGetCosts } from "@/hooks/cost";
 import { useGetRevenuesByScenario } from "@/hooks/revenue";
 import type { RevenueResponse } from "@/api/revenue";
 import type { RevenueItem } from "@/data/cost-item";
+import { useGetRevenues } from "@/hooks/revenue/useGetRevenues";
 
 // Transform CostResponse to CostItem
 const transformCostToCostItem = (cost: {
@@ -125,6 +126,7 @@ const Scenario: React.FC = () => {
   const { data: revenues, isLoading: isLoadingRevenues } =
     useGetRevenuesByScenario(selectedScenarioId);
   const { data: allCosts } = useGetCosts(); // Fetch all costs
+  const { data: allRevenues } = useGetRevenues(); // Fetch all revenues
 
   // Add helper function to get costs for a scenario
   const getScenarioCosts = (scenarioId: string): CostItem[] => {
@@ -132,6 +134,14 @@ const Scenario: React.FC = () => {
     return allCosts
       .filter((cost) => cost.scenario_id === scenarioId)
       .map(transformCostToCostItem);
+  };
+
+  // Add helper function to get revenues for a scenario
+  const getScenarioRevenues = (scenarioId: string): RevenueItem[] => {
+    if (!allRevenues) return [];
+    return allRevenues
+      .filter((revenue) => revenue.scenario_id === scenarioId)
+      .map(transformRevenueToRevenueItem);
   };
 
   const costItems = useMemo(() => {
@@ -360,10 +370,13 @@ const Scenario: React.FC = () => {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {scenarios.map((scenario) => {
             const scenarioCosts = getScenarioCosts(scenario.id);
+            const scenarioRevenues = getScenarioRevenues(scenario.id);
             const metrics = calculateScenarioMetrics(
               scenarioCosts,
               scenario.funding ? Number(scenario.funding) : null,
-              scenario.revenue ? Number(scenario.revenue) : null
+              scenario.revenue ? Number(scenario.revenue) : null,
+              undefined, // No selectedMonths - use annual view
+              scenarioRevenues // Pass revenue items
             );
 
             return (
@@ -423,9 +436,11 @@ const Scenario: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-1.5">
                         <div className="text-sm font-bold">
-                          {formatCurrency(metrics.netBurnRate * 12)}
+                          {formatCurrency(
+                            metrics.annualBurnRate - metrics.annualRevenue
+                          )}
                         </div>
-                        {metrics.netBurnRate < 0 ? (
+                        {metrics.annualBurnRate - metrics.annualRevenue < 0 ? (
                           <Badge
                             variant="default"
                             className="h-4 px-1.5 text-[10px] bg-green-500 hover:bg-green-500"
@@ -483,9 +498,15 @@ const Scenario: React.FC = () => {
                         {scenarioCosts.filter((c) => c.isActive).length} Active
                       </Badge>
                     )}
-                    {scenario.revenue && (
+                    {scenarioRevenues.length > 0 && (
                       <Badge variant="outline" className="text-xs">
-                        Revenue: {formatCurrency(Number(scenario.revenue))}
+                        Revenue:{" "}
+                        {formatCurrency(
+                          scenarioRevenues.reduce(
+                            (sum, r) => sum + r.annualValue,
+                            0
+                          )
+                        )}
                       </Badge>
                     )}
                   </div>

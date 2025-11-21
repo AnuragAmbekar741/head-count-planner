@@ -14,7 +14,11 @@ declare module "@tanstack/react-router" {
 function App() {
   return (
     <QueryProvider>
-      <ThemeProvider defaultTheme="light" storageKey="ui-theme">
+      <ThemeProvider
+        defaultTheme="dark"
+        forcedTheme="dark"
+        storageKey="ui-theme"
+      >
         <RouterProvider router={router} />
       </ThemeProvider>
     </QueryProvider>

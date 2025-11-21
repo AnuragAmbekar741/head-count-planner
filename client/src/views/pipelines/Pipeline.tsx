@@ -45,6 +45,8 @@ import {
   EmptyDescription,
 } from "@/components/ui/empty";
 import { FolderOpen } from "lucide-react";
+import { AddCostModal } from "@/components/modal/AddCostModal";
+import { Plus } from "lucide-react";
 
 // Update PipelineItem to match TableItem structure:
 interface PipelineItem {
@@ -356,7 +358,15 @@ function StageColumn({
 }
 
 // Unassigned Panel Component
-function UnassignedPanel({ items }: { items: PipelineItem[] }) {
+function UnassignedPanel({
+  items,
+  onAddItem,
+  scenarioId,
+}: {
+  items: PipelineItem[];
+  onAddItem: () => void;
+  scenarioId: string | null;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: "unassigned" });
 
   return (
@@ -377,6 +387,22 @@ function UnassignedPanel({ items }: { items: PipelineItem[] }) {
           {items.length}
         </Badge>
       </div>
+
+      {/* Add Item Button */}
+      {scenarioId && (
+        <div className="mb-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={onAddItem}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Item
+          </Button>
+        </div>
+      )}
+
       <div className="space-y-2 max-h-[600px] overflow-y-auto scrollbar-thin">
         <SortableContext
           items={items.map((i) => i.id)}
@@ -442,6 +468,7 @@ const Pipeline: React.FC = () => {
   });
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
 
   // Fetch scenarios - extract isLoading
   const { data: scenarios, isLoading: isLoadingScenarios } = useGetScenarios();
@@ -530,13 +557,35 @@ const Pipeline: React.FC = () => {
 
   // Calculate totals
   const totals = React.useMemo(() => {
+    // Helper to calculate first-year value based on startAt/endsAt
+    const calculateFirstYearValue = (item: PipelineItem): number => {
+      const monthly = item.amount; // Already monthly from transformation
+      const yearStartMonth = 1;
+      const yearEndMonth = 12;
+
+      // Calculate active months in first year
+      const firstActive = Math.max(yearStartMonth, item.startAt);
+      const lastActive =
+        item.endsAt !== null
+          ? Math.min(yearEndMonth, item.endsAt)
+          : yearEndMonth;
+
+      // If not active in first year at all
+      if (firstActive > yearEndMonth || lastActive < yearStartMonth) {
+        return 0;
+      }
+
+      const activeMonths = lastActive - firstActive + 1;
+      return monthly * activeMonths;
+    };
+
     const totalCosts = allItems
       .filter((item) => item.type === "cost" && item.isActive)
-      .reduce((sum, item) => sum + item.amount * 12, 0); // Annual cost
+      .reduce((sum, item) => sum + calculateFirstYearValue(item), 0);
 
     const totalRevenue = allItems
       .filter((item) => item.type === "revenue" && item.isActive)
-      .reduce((sum, item) => sum + item.amount * 12, 0); // Annual revenue
+      .reduce((sum, item) => sum + calculateFirstYearValue(item), 0);
 
     const netBurn = totalCosts - totalRevenue;
     const growthRate =
@@ -876,6 +925,8 @@ const Pipeline: React.FC = () => {
             {/* Unassigned Panel - items not yet assigned to a stage */}
             <UnassignedPanel
               items={allItems.filter((item) => !item.isActive)}
+              onAddItem={() => setIsAddItemModalOpen(true)}
+              scenarioId={selectedScenarioId}
             />
 
             {/* Stage Columns */}
@@ -949,6 +1000,13 @@ const Pipeline: React.FC = () => {
         open={isCreateModalOpen}
         onOpenChange={setIsCreateModalOpen}
       />
+      {selectedScenarioId && (
+        <AddCostModal
+          open={isAddItemModalOpen}
+          onOpenChange={setIsAddItemModalOpen}
+          scenarioId={selectedScenarioId}
+        />
+      )}
     </div>
   );
 };

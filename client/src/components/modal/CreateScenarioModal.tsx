@@ -873,13 +873,8 @@ export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
       onSubmit={handleSubmit}
       onCancel={handleCancel}
       submitLabel={
-        step === 1 ? "Next" : step === 2 ? "Next" : "Create Scenario"
-      }
-      cancelLabel={step === 1 ? "Cancel" : step === 2 ? "Back" : "Back"}
-      isSubmitting={isSubmitting}
-      disabled={
         step === 1
-          ? !name.trim() || createScenario.isPending
+          ? "Next"
           : step === 2
             ? costs.every(
                 (cost) =>
@@ -887,11 +882,26 @@ export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
                   !cost.value ||
                   !cost.category.trim() ||
                   !cost.starts_at
-              ) || createCostsBulk.isPending
+              )
+              ? "Skip"
+              : "Next"
             : revenues.every(
-                (revenue) =>
-                  !revenue.title.trim() || !revenue.value || !revenue.starts_at
-              ) || createRevenuesBulk.isPending
+                  (revenue) =>
+                    !revenue.title.trim() ||
+                    !revenue.value ||
+                    !revenue.starts_at
+                )
+              ? "Skip"
+              : "Create Scenario"
+      }
+      cancelLabel={step === 1 ? "Cancel" : step === 2 ? "Back" : "Back"}
+      isSubmitting={isSubmitting}
+      disabled={
+        step === 1
+          ? !name.trim() || createScenario.isPending
+          : step === 2
+            ? createCostsBulk.isPending // Allow skipping - remove the validation check
+            : createRevenuesBulk.isPending // Allow skipping - remove the validation check
       }
     >
       <div className="space-y-4">
