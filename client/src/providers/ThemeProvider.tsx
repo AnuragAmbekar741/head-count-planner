@@ -7,6 +7,7 @@ type ThemeProviderProps = {
   children: React.ReactNode;
   defaultTheme?: Theme;
   storageKey?: string;
+  forcedTheme?: Theme;
 };
 
 type ThemeProviderState = {
@@ -26,18 +27,26 @@ export function ThemeProvider({
   children,
   defaultTheme = "system",
   storageKey = "vite-ui-theme",
+  forcedTheme,
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
-  );
+  // If forcedTheme is provided, always use it; otherwise use localStorage or defaultTheme
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (forcedTheme) {
+      return forcedTheme;
+    }
+    return (localStorage.getItem(storageKey) as Theme) || defaultTheme;
+  });
 
   useEffect(() => {
     const root = window.document.documentElement;
 
     root.classList.remove("light", "dark");
 
-    if (theme === "system") {
+    // If forcedTheme is provided, always use it
+    const activeTheme = forcedTheme || theme;
+
+    if (activeTheme === "system") {
       const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
         .matches
         ? "dark"
@@ -47,14 +56,18 @@ export function ThemeProvider({
       return;
     }
 
-    root.classList.add(theme);
-  }, [theme]);
+    root.classList.add(activeTheme);
+  }, [theme, forcedTheme]);
 
   const value = {
-    theme,
-    setTheme: (theme: Theme) => {
-      localStorage.setItem(storageKey, theme);
-      setTheme(theme);
+    theme: forcedTheme || theme, // Always return forcedTheme if provided
+    setTheme: (newTheme: Theme) => {
+      // If forcedTheme is set, don't allow changing theme
+      if (forcedTheme) {
+        return;
+      }
+      localStorage.setItem(storageKey, newTheme);
+      setTheme(newTheme);
     },
   };
 
