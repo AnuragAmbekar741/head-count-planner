@@ -18,7 +18,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, GripVertical, TrendingUp, TrendingDown } from "lucide-react";
+import { GripVertical, TrendingUp, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CreateScenarioModal } from "@/components/modal";
 import { formatCurrency } from "@/utils/number-format";
@@ -36,6 +36,15 @@ import { Label } from "@/components/ui/label";
 import { useUpdateCost } from "@/hooks/cost";
 import { useUpdateRevenue } from "@/hooks/revenue";
 import { MatrixCard } from "@/components/matrix-card";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from "@/components/ui/empty";
+import { FolderOpen } from "lucide-react";
 
 // Update PipelineItem to match TableItem structure:
 interface PipelineItem {
@@ -335,7 +344,7 @@ function StageColumn({
           <div className="text-center text-sm text-muted-foreground py-12 border-2 border-dashed rounded-lg bg-muted/20">
             <div className="flex flex-col items-center gap-2">
               <div className="h-8 w-8 rounded-full border-2 border-dashed flex items-center justify-center">
-                <Plus className="h-4 w-4" />
+                <GripVertical className="h-4 w-4" />
               </div>
               <span>Drop items here</span>
             </div>
@@ -381,7 +390,7 @@ function UnassignedPanel({ items }: { items: PipelineItem[] }) {
           <div className="text-center text-sm text-muted-foreground py-12 border-2 border-dashed rounded-lg">
             <div className="flex flex-col items-center gap-2">
               <div className="h-8 w-8 rounded-full border-2 border-dashed flex items-center justify-center">
-                <Plus className="h-4 w-4" />
+                <GripVertical className="h-4 w-4" />
               </div>
               <span>No unassigned items</span>
             </div>
@@ -434,12 +443,14 @@ const Pipeline: React.FC = () => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // Fetch scenarios
-  const { data: scenarios } = useGetScenarios();
+  // Fetch scenarios - extract isLoading
+  const { data: scenarios, isLoading: isLoadingScenarios } = useGetScenarios();
 
-  // Fetch costs and revenues for selected scenario
-  const { data: costs } = useGetCostsByScenario(selectedScenarioId);
-  const { data: revenues } = useGetRevenuesByScenario(selectedScenarioId);
+  // Fetch costs and revenues for selected scenario - extract isLoading
+  const { data: costs, isLoading: isLoadingCosts } =
+    useGetCostsByScenario(selectedScenarioId);
+  const { data: revenues, isLoading: isLoadingRevenues } =
+    useGetRevenuesByScenario(selectedScenarioId);
 
   // Transform costs and revenues to PipelineItems
   const allItems = React.useMemo(() => {
@@ -664,12 +675,43 @@ const Pipeline: React.FC = () => {
 
   const activeItem = allItems.find((i) => i.id === activeId);
 
+  // Loading state for scenarios
+  if (isLoadingScenarios) {
+    return (
+      <div className="space-y-6">
+        {/* Header skeleton */}
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-10 w-64" />
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-40" />
+          </div>
+        </div>
+
+        {/* Metrics skeleton */}
+        <div className="flex gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-20 w-[19.5%]" />
+          ))}
+        </div>
+
+        {/* Pipeline skeleton */}
+        <div className="flex gap-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-96 w-64" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-6">
       {/* Header with Scenario Selector and View Type */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
-          <div></div> {/* Empty div for spacing */}
+          {/* Left side: Scenario and View Type dropdowns */}
           <div className="flex items-end gap-4">
             <div className="space-y-2">
               <Label>Select Scenario</Label>
@@ -707,12 +749,12 @@ const Pipeline: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
-
-            <Button onClick={() => setIsCreateModalOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Scenario
-            </Button>
           </div>
+
+          {/* Right side: Create Scenario button */}
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            Create Scenario
+          </Button>
         </div>
 
         {/* Totals Summary */}
@@ -785,13 +827,35 @@ const Pipeline: React.FC = () => {
       </div>
 
       {!selectedScenarioId ? (
-        <Card>
-          <CardContent className="py-12">
-            <div className="text-center text-muted-foreground">
-              Please select a scenario to view its pipeline
-            </div>
-          </CardContent>
-        </Card>
+        <Empty className="w-full">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <FolderOpen className="size-6" />
+            </EmptyMedia>
+            <EmptyTitle>No scenario selected</EmptyTitle>
+            <EmptyDescription>
+              Please select a scenario from the dropdown above to view its
+              pipeline visualization
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : isLoadingCosts || isLoadingRevenues ? (
+        <div className="space-y-6">
+          {/* Metrics skeleton */}
+          <div className="flex gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-20 w-[19.5%]" />
+            ))}
+          </div>
+
+          {/* Pipeline skeleton */}
+          <div className="flex gap-4">
+            {stages.map((_, i) => (
+              <Skeleton key={i} className="h-96 w-64" />
+            ))}
+            <Skeleton className="h-96 w-64" /> {/* Unassigned panel */}
+          </div>
+        </div>
       ) : (
         <DndContext
           sensors={sensors}

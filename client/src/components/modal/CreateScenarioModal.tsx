@@ -48,7 +48,6 @@ export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
   const [step, setStep] = useState(1); // 1 = scenario details, 2 = costs, 3 = revenues
   const [name, setName] = useState("");
   const [funding, setFunding] = useState("");
-  const [revenue, setRevenue] = useState(""); // Add revenue state
   const [description, setDescription] = useState("");
   const [costs, setCosts] = useState<CostFormData[]>([
     {
@@ -93,7 +92,6 @@ export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
         {
           name: name.trim(),
           funding: funding ? parseFloat(funding) : undefined,
-          revenue: revenue ? parseFloat(revenue) : undefined, // Add revenue
           description: description.trim() || undefined,
         },
         {
@@ -347,7 +345,6 @@ export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
     setStep(1);
     setName("");
     setFunding("");
-    setRevenue(""); // Reset revenue
     setDescription("");
     setCosts([
       {
@@ -382,7 +379,6 @@ export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
       onOpenChange(false);
       setName("");
       setFunding("");
-      setRevenue("");
       setDescription("");
     } else if (step === 2) {
       setStep(1); // Go back to step 1
@@ -416,7 +412,7 @@ export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
   const renderStep1 = () => (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="name">Name *</Label>
+        <Label htmlFor="name">Name</Label>
         <Input
           id="name"
           value={name}
@@ -437,21 +433,7 @@ export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
           step="0.01"
         />
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="revenue">Annual Revenue</Label>
-        <Input
-          id="revenue"
-          type="number"
-          value={revenue}
-          onChange={(e) => setRevenue(e.target.value)}
-          placeholder="Enter annual revenue amount (optional)"
-          min="0"
-          step="0.01"
-        />
-        <p className="text-xs text-muted-foreground">
-          Total revenue for the year
-        </p>
-      </div>
+      {/* Remove the Annual Revenue field (lines 440-454) */}
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
         <Input
