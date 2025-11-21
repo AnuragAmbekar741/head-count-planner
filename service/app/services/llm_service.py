@@ -386,6 +386,136 @@ Return ONLY the JSON object, no other text.
             raise ValueError(f"Failed to parse LLM response as JSON: {str(e)}\nResponse: {response}")
 
 
+    async def compare_scenarios(
+        self,
+        scenario1_data: Dict[str, Any],
+        scenario2_data: Dict[str, Any]
+    ) -> str:
+        """
+        Compare two scenarios and generate a comprehensive comparison report.
+        
+        Args:
+            scenario1_data: Dictionary containing first scenario data with:
+                - scenario: {name, description, funding}
+                - costs: List of cost items
+                - revenues: List of revenue items
+                - metrics: {total_costs, total_revenue, net_burn, growth_rate, runway} (optional)
+            scenario2_data: Dictionary containing second scenario data (same structure)
+        
+        Returns:
+            Comparison report as a string
+        """
+        system_prompt = """You are a financial planning assistant specializing in startup financial analysis and scenario comparison. 
+You provide clear, actionable insights comparing different financial scenarios, focusing on:
+- Burn rate and runway analysis
+- Cost structure differences
+- Revenue projections and growth potential
+- Risk assessment
+- Strategic recommendations
+
+Provide comprehensive, well-structured comparison reports that help founders make informed decisions."""
+
+        # Format scenario data for comparison
+        def format_scenario_data(scenario_data: Dict[str, Any], scenario_label: str) -> str:
+            scenario = scenario_data.get("scenario", {})
+            costs = scenario_data.get("costs", [])
+            revenues = scenario_data.get("revenues", [])
+            metrics = scenario_data.get("metrics", {})
+            
+            formatted = f"""
+{scenario_label}:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Name: {scenario.get('name', 'N/A')}
+Description: {scenario.get('description', 'N/A')}
+Funding: ${scenario.get('funding', 0):,.2f} if scenario.get('funding') else 'Not specified'
+
+Financial Metrics:
+  • Total Costs (First Year): ${metrics.get('total_costs', 0):,.2f}
+  • Total Revenue (First Year): ${metrics.get('total_revenue', 0):,.2f}
+  • Net Burn Rate: ${metrics.get('net_burn', 0):,.2f}
+  • Growth Rate: {metrics.get('growth_rate', 0):.2f}%
+  • Runway: {metrics.get('runway', 'N/A')} months if isinstance(metrics.get('runway'), (int, float)) else metrics.get('runway', 'N/A')
+
+Cost Structure ({len(costs)} items):
+"""
+            if costs:
+                # Group costs by category
+                costs_by_category = {}
+                for cost in costs:
+                    category = cost.get('category', 'Other')
+                    if category not in costs_by_category:
+                        costs_by_category[category] = []
+                    costs_by_category[category].append(cost)
+                
+                for category, category_costs in costs_by_category.items():
+                    total_category_cost = sum(float(c.get('value', 0)) for c in category_costs)
+                    formatted += f"  {category}: ${total_category_cost:,.2f} ({len(category_costs)} items)\n"
+                    for cost in category_costs[:3]:  # Show first 3 items per category
+                        formatted += f"    - {cost.get('title', 'N/A')}: ${float(cost.get('value', 0)):,.2f} (starts month {cost.get('starts_at', 'N/A')})\n"
+                    if len(category_costs) > 3:
+                        formatted += f"    ... and {len(category_costs) - 3} more items\n"
+            else:
+                formatted += "  No costs defined\n"
+            
+            formatted += f"""
+Revenue Structure ({len(revenues)} items):
+"""
+            if revenues:
+                total_revenue = sum(float(r.get('value', 0)) for r in revenues)
+                formatted += f"  Total Revenue: ${total_revenue:,.2f}\n"
+                for revenue in revenues:
+                    formatted += f"  - {revenue.get('title', 'N/A')}: ${float(revenue.get('value', 0)):,.2f} (starts month {revenue.get('starts_at', 'N/A')}, category: {revenue.get('category', 'N/A')})\n"
+            else:
+                formatted += "  No revenues defined\n"
+            
+            return formatted
+
+        scenario1_formatted = format_scenario_data(scenario1_data, "SCENARIO 1")
+        scenario2_formatted = format_scenario_data(scenario2_data, "SCENARIO 2")
+
+        prompt = f"""Compare the following two financial scenarios and provide a comprehensive analysis.
+
+{scenario1_formatted}
+
+{scenario2_formatted}
+
+Please provide a detailed comparison report covering:
+
+1. **Executive Summary**
+   - Key differences at a glance
+   - Which scenario appears more sustainable
+
+2. **Financial Metrics Comparison**
+   - Burn rate differences
+   - Runway comparison
+   - Growth potential analysis
+   - Funding adequacy
+
+3. **Cost Structure Analysis**
+   - Team composition differences
+   - Cost efficiency comparison
+   - Hiring timeline impact
+
+4. **Revenue Projections**
+   - Revenue generation differences
+   - Growth trajectory comparison
+   - Time to profitability
+
+5. **Risk Assessment**
+   - Risk factors for each scenario
+   - Sustainability concerns
+   - Cash flow risks
+
+6. **Strategic Recommendations**
+   - Which scenario to choose and why
+   - Hybrid approaches or modifications
+   - Key milestones to monitor
+
+Format your response in a clear, structured manner with sections and bullet points where appropriate."""
+
+        response = await self.generate_text(prompt, system_prompt)
+        return response
+
 
 # Singleton instance
 _llm_service: Optional[LLMService] = None
