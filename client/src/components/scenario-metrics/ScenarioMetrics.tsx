@@ -6,29 +6,32 @@ import {
   calculateScenarioMetrics,
   formatRunway,
 } from "@/utils/scenario-metrics";
-import type { CostItem } from "@/data/cost-item";
+import type { CostItem, RevenueItem } from "@/data/cost-item";
 import { formatCurrency } from "@/utils/number-format";
 
 interface ScenarioMetricsProps {
   costs: CostItem[];
   funding: number | null;
-  revenue: number | null;
+  revenue: number | null; // Keep for backward compatibility
+  revenueItems?: RevenueItem[]; // Add this prop
   viewType?: "monthly" | "annual";
-  selectedMonths?: number[]; // Add this prop
+  selectedMonths?: number[];
 }
 
 export const ScenarioMetrics: React.FC<ScenarioMetricsProps> = ({
   costs,
   funding,
   revenue,
+  revenueItems, // Add this prop
   viewType = "annual",
-  selectedMonths, // Add this prop
+  selectedMonths,
 }) => {
   const metrics = calculateScenarioMetrics(
     costs,
     funding,
     revenue,
-    viewType === "monthly" ? selectedMonths : undefined // Pass selectedMonths
+    viewType === "monthly" ? selectedMonths : undefined,
+    revenueItems // Pass revenue items
   );
 
   return (

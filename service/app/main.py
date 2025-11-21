@@ -6,6 +6,7 @@ import uvicorn
 from app.router.google_auth import router as google_auth_router
 from app.router.costs import router as costs_router
 from app.router.scenarios import router as scenarios_router
+from app.router.revenues import router as revenues_router
 from app.config import settings, TORTOISE_ORM
 
 # Create FastAPI application
@@ -43,6 +44,9 @@ app.include_router(costs_router)
 
 # Scenario routes - all require authentication
 app.include_router(scenarios_router)
+
+# Revenue routes - all require authentication
+app.include_router(revenues_router)
 
 # ============================================================================
 # DATABASE CONFIGURATION

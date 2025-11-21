@@ -72,6 +72,8 @@ import {
 import { AddCostModal } from "@/components/modal/AddCostModal";
 import { useState } from "react";
 import { formatCurrency } from "@/utils/number-format";
+import type { TableItem } from "@/data/cost-item";
+import { TrendingUp, TrendingDown } from "lucide-react";
 
 // Add this utility function near the top, after imports
 function formatMonthNumber(monthNumber: number): string {
@@ -119,7 +121,7 @@ export function DataTable({
   onSelectedMonthsChange, // Add this prop
   scenarioId, // Add this prop
 }: {
-  data: CostItem[];
+  data: TableItem[]; // Change from CostItem[] to TableItem[]
   outlineViewType?: "monthly" | "annual";
   onOutlineViewTypeChange?: (value: "monthly" | "annual") => void;
   onSelectedMonthsChange?: (months: number[]) => void; // Add this prop
@@ -167,28 +169,28 @@ export function DataTable({
   }, [initialData]);
 
   // Handle status toggle
-  const handleStatusToggle = (costId: string, currentStatus: boolean) => {
-    updateCostMutation.mutate(
-      {
-        costId,
-        data: {
-          is_active: !currentStatus,
-        },
-      },
-      {
-        onSuccess: (updatedCost) => {
-          // Update local data state
-          setData((prevData) =>
-            prevData.map((item) =>
-              item.id === costId
-                ? { ...item, isActive: updatedCost.is_active }
-                : item
-            )
-          );
-        },
-      }
-    );
-  };
+  // const handleStatusToggle = (costId: string, currentStatus: boolean) => {
+  //   updateCostMutation.mutate(
+  //     {
+  //       costId,
+  //       data: {
+  //         is_active: !currentStatus,
+  //       },
+  //     },
+  //     {
+  //       onSuccess: (updatedCost) => {
+  //         // Update local data state
+  //         setData((prevData) =>
+  //           prevData.map((item) =>
+  //             item.id === costId
+  //               ? { ...item, isActive: updatedCost.is_active }
+  //               : item
+  //           )
+  //         );
+  //       },
+  //     }
+  //   );
+  // };
 
   // Calculate months for outline table - only current year (1-12)
   const currentYearMonths = React.useMemo(() => {
@@ -350,12 +352,16 @@ export function DataTable({
   };
 
   // Helper function to calculate grouped data
-  const getGroupedData = () => {
-    if (grouping.length === 0) return null;
-
+  const getGroupedData = (): Array<{
+    category: string;
+    items: TableItem[];
+    totalValue: number;
+    hasActive: boolean;
+    hasInactive: boolean;
+  }> => {
     const grouped = data.reduce(
       (acc, item) => {
-        const category = item.category;
+        const category = item.category || "Uncategorized";
         if (!acc[category]) {
           acc[category] = {
             category,
@@ -374,7 +380,13 @@ export function DataTable({
             ? item.annualValue
             : calculateMonthlyValueForSelectedMonths(item);
 
-        acc[category].totalValue += itemValue;
+        // For revenue, subtract from total (it's income)
+        // For cost, add to total (it's expense)
+        if (item.type === "revenue") {
+          acc[category].totalValue -= itemValue; // Revenue reduces total
+        } else {
+          acc[category].totalValue += itemValue; // Cost increases total
+        }
 
         // Check status
         const isActive = isCostActiveInSelectedMonths(item);
@@ -390,7 +402,7 @@ export function DataTable({
         string,
         {
           category: string;
-          items: CostItem[];
+          items: TableItem[];
           totalValue: number;
           hasActive: boolean;
           hasInactive: boolean;
@@ -402,7 +414,7 @@ export function DataTable({
   };
 
   // Define columns with dynamic value based on outlineViewType
-  const columns: ColumnDef<CostItem>[] = React.useMemo(
+  const columns: ColumnDef<TableItem>[] = React.useMemo(
     () => [
       {
         id: "select",
@@ -433,6 +445,32 @@ export function DataTable({
         enableHiding: false,
       },
       {
+        id: "type",
+        header: "Type",
+        cell: ({ row }) => {
+          const item = row.original;
+          const isRevenue = item.type === "revenue";
+          return (
+            <Badge
+              variant={isRevenue ? "default" : "secondary"}
+              className={isRevenue ? "bg-green-500" : ""}
+            >
+              {isRevenue ? (
+                <>
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  Revenue
+                </>
+              ) : (
+                <>
+                  <TrendingDown className="h-3 w-3 mr-1" />
+                  Cost
+                </>
+              )}
+            </Badge>
+          );
+        },
+      },
+      {
         accessorKey: "title",
         header: "Title",
         cell: ({ row }) => {
@@ -455,14 +493,24 @@ export function DataTable({
         cell: ({ row }) => {
           // Calculate value based on toggle
           let value: number;
+          const item = row.original;
+          const isRevenue = item.type === "revenue";
+
           if (outlineViewType === "annual") {
-            value = row.original.annualValue;
+            value = item.annualValue;
           } else {
             // For monthly view, sum up costs for selected months
-            value = calculateMonthlyValueForSelectedMonths(row.original);
+            value = calculateMonthlyValueForSelectedMonths(item);
           }
 
-          return <div className="text-right">{formatCurrency(value)}</div>;
+          return (
+            <div
+              className={`text-right ${isRevenue ? "text-green-600" : "text-red-600"}`}
+            >
+              {isRevenue ? "+" : "-"}
+              {formatCurrency(value)}
+            </div>
+          );
         },
       },
       {
@@ -495,14 +543,19 @@ export function DataTable({
         accessorKey: "isActive",
         header: "Status",
         cell: ({ row }) => {
-          const isActive = isCostActiveInSelectedMonths(row.original);
+          const item = row.original;
+          const isActive = isCostActiveInSelectedMonths(item);
           return (
             <Badge
               variant={isActive ? "default" : "secondary"}
               className="px-1.5 cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() =>
-                handleStatusToggle(row.original.id, row.original.isActive)
-              }
+              onClick={() => {
+                if (item.type === "revenue") {
+                  // Handle revenue update
+                } else {
+                  // Handle cost update
+                }
+              }}
             >
               {isActive ? "Active 🔥" : "Inactive"}
             </Badge>
@@ -727,39 +780,47 @@ export function DataTable({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {groupedData.map((group) => {
-                    const statusText =
-                      group.hasActive && group.hasInactive
-                        ? "Mixed"
-                        : group.hasActive
-                          ? "Active 🔥"
-                          : "Inactive";
-                    const statusVariant =
-                      group.hasActive && !group.hasInactive
-                        ? "default"
-                        : "secondary";
+                  {groupedData.map(
+                    (group: {
+                      category: string;
+                      items: TableItem[];
+                      totalValue: number;
+                      hasActive: boolean;
+                      hasInactive: boolean;
+                    }) => {
+                      const statusText =
+                        group.hasActive && group.hasInactive
+                          ? "Mixed"
+                          : group.hasActive
+                            ? "Active 🔥"
+                            : "Inactive";
+                      const statusVariant =
+                        group.hasActive && !group.hasInactive
+                          ? "default"
+                          : "secondary";
 
-                    return (
-                      <TableRow key={group.category} className="font-medium">
-                        <TableCell className="w-1/3">
-                          <Badge
-                            variant="outline"
-                            className="text-muted-foreground px-1.5"
-                          >
-                            {group.category}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="w-1/3 text-right">
-                          {formatCurrency(group.totalValue)}
-                        </TableCell>
-                        <TableCell className="w-1/3 text-center">
-                          <Badge variant={statusVariant} className="px-1.5">
-                            {statusText}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                      return (
+                        <TableRow key={group.category} className="font-medium">
+                          <TableCell className="w-1/3">
+                            <Badge
+                              variant="outline"
+                              className="text-muted-foreground px-1.5"
+                            >
+                              {group.category}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="w-1/3 text-right">
+                            {formatCurrency(group.totalValue)}
+                          </TableCell>
+                          <TableCell className="w-1/3 text-center">
+                            <Badge variant={statusVariant} className="px-1.5">
+                              {statusText}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+                  )}
                 </TableBody>
               </>
             ) : (

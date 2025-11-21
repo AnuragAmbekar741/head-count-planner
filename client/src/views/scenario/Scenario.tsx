@@ -40,6 +40,9 @@ import {
   Flame,
 } from "lucide-react";
 import { useGetCosts } from "@/hooks/cost";
+import { useGetRevenuesByScenario } from "@/hooks/revenue";
+import type { RevenueResponse } from "@/api/revenue";
+import type { RevenueItem } from "@/data/cost-item";
 
 // Transform CostResponse to CostItem
 const transformCostToCostItem = (cost: {
@@ -74,6 +77,31 @@ const transformCostToCostItem = (cost: {
   };
 };
 
+const transformRevenueToRevenueItem = (
+  revenue: RevenueResponse
+): RevenueItem => {
+  const frequencyMap: Record<string, CostItem["frequency"]> = {
+    monthly: "MONTHLY",
+    quarterly: "QUARTERLY",
+    yearly: "YEARLY",
+    annual: "YEARLY",
+    one_time: "ONE_TIME",
+  };
+
+  return {
+    id: revenue.id,
+    title: revenue.title,
+    category: revenue.category,
+    startAt: revenue.starts_at,
+    endsAt: revenue.end_at,
+    annualValue: revenue.value,
+    frequency: frequencyMap[revenue.freq.toLowerCase()] || "MONTHLY",
+    isActive: revenue.is_active,
+    scenarioId: revenue.scenario_id,
+    type: "revenue",
+  };
+};
+
 const Scenario: React.FC = () => {
   const { data: scenarios, isLoading, error } = useGetScenarios();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -94,6 +122,8 @@ const Scenario: React.FC = () => {
   const { data: selectedScenario } = useGetScenario(selectedScenarioId);
   const { data: costs, isLoading: isLoadingCosts } =
     useGetCostsByScenario(selectedScenarioId);
+  const { data: revenues, isLoading: isLoadingRevenues } =
+    useGetRevenuesByScenario(selectedScenarioId);
   const { data: allCosts } = useGetCosts(); // Fetch all costs
 
   // Add helper function to get costs for a scenario
@@ -108,6 +138,23 @@ const Scenario: React.FC = () => {
     if (!costs) return [];
     return costs.map(transformCostToCostItem);
   }, [costs]);
+
+  const revenueItems = useMemo(() => {
+    if (!revenues) return [];
+    return revenues.map(transformRevenueToRevenueItem);
+  }, [revenues]);
+
+  const tableItems = useMemo(() => {
+    const costItems = costs
+      ? costs
+          .map(transformCostToCostItem)
+          .map((c) => ({ ...c, type: "cost" as const }))
+      : [];
+    const revenueItems = revenues
+      ? revenues.map(transformRevenueToRevenueItem)
+      : [];
+    return [...costItems, ...revenueItems];
+  }, [costs, revenues]);
 
   const handleDelete = (
     scenarioId: string,
@@ -254,6 +301,7 @@ const Scenario: React.FC = () => {
             costs={costItems}
             funding={selectedScenario?.funding || null}
             revenue={selectedScenario?.revenue || null}
+            revenueItems={revenueItems} // Use the useMemo variable instead of filtering tableItems
             viewType={outlineViewType} // Add this prop
             selectedMonths={
               outlineViewType === "monthly" ? selectedMonths : undefined
@@ -261,13 +309,13 @@ const Scenario: React.FC = () => {
           />
 
           {/* Data Table */}
-          {isLoadingCosts ? (
+          {isLoadingCosts || isLoadingRevenues ? (
             <div className="space-y-4">
               <Skeleton className="h-64 w-full" />
             </div>
-          ) : costItems.length > 0 ? (
+          ) : tableItems.length > 0 ? (
             <DataTable
-              data={costItems}
+              data={tableItems}
               outlineViewType={outlineViewType} // Add this prop
               onOutlineViewTypeChange={setOutlineViewType} // Add this prop
               onSelectedMonthsChange={setSelectedMonths} // Add this prop
@@ -277,7 +325,7 @@ const Scenario: React.FC = () => {
             <Card>
               <CardContent className="py-12">
                 <div className="text-center text-sm text-muted-foreground">
-                  No costs added to this scenario yet.
+                  No costs or revenues added to this scenario yet.
                 </div>
               </CardContent>
             </Card>

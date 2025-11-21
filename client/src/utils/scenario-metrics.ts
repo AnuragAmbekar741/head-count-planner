@@ -1,4 +1,4 @@
-import type { CostItem } from "@/data/cost-item";
+import type { CostItem, RevenueItem } from "@/data/cost-item";
 
 export interface ScenarioMetrics {
   monthlyBurnRate: number; // Total monthly costs
@@ -78,19 +78,131 @@ function calculateCostForMonth(cost: CostItem, month: number): number {
 }
 
 /**
+ * Calculate monthly revenue for a single revenue item
+ */
+function calculateMonthlyRevenue(revenue: RevenueItem): number {
+  if (!revenue.isActive) return 0;
+
+  switch (revenue.frequency) {
+    case "MONTHLY":
+      return revenue.annualValue / 12;
+    case "QUARTERLY":
+      return revenue.annualValue / 4;
+    case "HALF_YEARLY":
+      return revenue.annualValue / 2;
+    case "YEARLY":
+      return revenue.annualValue / 12; // Average monthly
+    case "ONE_TIME":
+      return revenue.annualValue / 12; // Simplified: amortize over year
+    default:
+      return revenue.annualValue / 12;
+  }
+}
+
+/**
+ * Calculate revenue for a single revenue item for a specific month
+ */
+function calculateRevenueForMonth(revenue: RevenueItem, month: number): number {
+  if (!revenue.isActive) return 0;
+
+  // Check if revenue has started
+  if (month < revenue.startAt) return 0;
+
+  // Check if revenue has ended
+  if (revenue.endsAt !== null && month > revenue.endsAt) return 0;
+
+  // Calculate revenue based on frequency
+  switch (revenue.frequency) {
+    case "MONTHLY":
+      return revenue.annualValue / 12;
+
+    case "QUARTERLY": {
+      const monthsSinceStart = month - revenue.startAt;
+      if (monthsSinceStart < 0) return 0;
+      return monthsSinceStart % 3 === 0 ? revenue.annualValue / 4 : 0;
+    }
+
+    case "YEARLY": {
+      const monthsSinceStart = month - revenue.startAt;
+      if (monthsSinceStart < 0) return 0;
+      return monthsSinceStart % 12 === 0 ? revenue.annualValue : 0;
+    }
+
+    case "ONE_TIME":
+      return month === revenue.startAt ? revenue.annualValue : 0;
+
+    default:
+      return revenue.annualValue / 12;
+  }
+}
+
+/**
  * Calculate scenario financial metrics
  */
 export function calculateScenarioMetrics(
   costs: CostItem[],
   funding: number | null,
-  revenue: number | null,
-  selectedMonths?: number[] // Add this parameter
+  revenue: number | null, // Keep for backward compatibility, but will be calculated from revenueItems
+  selectedMonths?: number[],
+  revenueItems?: RevenueItem[] // Add this parameter
 ): ScenarioMetrics {
   let monthlyBurnRate: number;
   let annualBurnRate: number;
+  let monthlyRevenue: number;
+  let annualRevenue: number;
 
+  // Calculate revenue from revenue items if provided, otherwise use scenario revenue
+  if (revenueItems && revenueItems.length > 0) {
+    if (selectedMonths && selectedMonths.length > 0) {
+      // Calculate revenue for selected months
+      const totalRevenueForSelectedMonths = revenueItems
+        .filter((rev) => rev.isActive)
+        .reduce((sum, rev) => {
+          return (
+            sum +
+            selectedMonths.reduce(
+              (monthSum, month) =>
+                monthSum + calculateRevenueForMonth(rev, month),
+              0
+            )
+          );
+        }, 0);
+
+      monthlyRevenue = totalRevenueForSelectedMonths / selectedMonths.length;
+      annualRevenue = monthlyRevenue * 12;
+    } else {
+      // Calculate revenue for all months
+      monthlyRevenue = revenueItems
+        .filter((rev) => rev.isActive)
+        .reduce((sum, rev) => sum + calculateMonthlyRevenue(rev), 0);
+
+      annualRevenue = revenueItems
+        .filter((rev) => rev.isActive)
+        .reduce((sum, rev) => {
+          switch (rev.frequency) {
+            case "MONTHLY":
+              return sum + rev.annualValue;
+            case "QUARTERLY":
+              return sum + rev.annualValue;
+            case "HALF_YEARLY":
+              return sum + rev.annualValue;
+            case "YEARLY":
+              return sum + rev.annualValue;
+            case "ONE_TIME":
+              return sum + rev.annualValue;
+            default:
+              return sum + rev.annualValue;
+          }
+        }, 0);
+    }
+  } else {
+    // Fallback to scenario revenue field (backward compatibility)
+    monthlyRevenue = revenue ? revenue / 12 : 0;
+    annualRevenue = revenue || 0;
+  }
+
+  // Calculate costs (existing logic)
   if (selectedMonths && selectedMonths.length > 0) {
-    // Calculate based on selected months
     const totalCostForSelectedMonths = costs
       .filter((cost) => cost.isActive)
       .reduce((sum, cost) => {
@@ -103,13 +215,9 @@ export function calculateScenarioMetrics(
         );
       }, 0);
 
-    // Average monthly burn rate for selected months
     monthlyBurnRate = totalCostForSelectedMonths / selectedMonths.length;
-
-    // Annualize: multiply by 12 to get annual equivalent
     annualBurnRate = monthlyBurnRate * 12;
   } else {
-    // Original calculation (all months)
     monthlyBurnRate = costs
       .filter((cost) => cost.isActive)
       .reduce((sum, cost) => sum + calculateMonthlyCost(cost), 0);
@@ -134,9 +242,6 @@ export function calculateScenarioMetrics(
       }, 0);
   }
 
-  // Assume revenue is annual, convert to monthly
-  const monthlyRevenue = revenue ? revenue / 12 : 0;
-
   // Net burn rate = costs - revenue
   const netBurnRate = monthlyBurnRate - monthlyRevenue;
 
@@ -148,10 +253,10 @@ export function calculateScenarioMetrics(
     runway = Infinity;
   }
 
-  // Growth rate calculation
+  // Growth rate calculation - use annual revenue from items or scenario field
   const growthRate =
-    revenue && annualBurnRate > 0
-      ? ((revenue - annualBurnRate) / annualBurnRate) * 100
+    annualRevenue > 0 && annualBurnRate > 0
+      ? ((annualRevenue - annualBurnRate) / annualBurnRate) * 100
       : 0;
 
   return {
