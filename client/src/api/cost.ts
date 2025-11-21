@@ -22,6 +22,7 @@ export interface CostCreateRequest {
   end_at?: number | null;
   freq: CostFrequencyType;
   scenario_id: string; // UUID as string
+  is_active?: boolean; // Add this field
 }
 
 export interface CostUpdateRequest {
@@ -32,6 +33,7 @@ export interface CostUpdateRequest {
   end_at?: number | null;
   freq?: CostFrequencyType;
   scenario_id?: string;
+  is_active?: boolean; // Add this field
 }
 
 export interface CostBulkCreateRequest {
@@ -47,6 +49,7 @@ export interface CostResponse {
   starts_at: number;
   end_at: number | null;
   freq: string;
+  is_active: boolean; // Add this field
   scenario_id: string;
   created_at: string;
   updated_at: string;

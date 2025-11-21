@@ -10,6 +10,7 @@ class Cost(Model):
     starts_at = fields.IntField()  # month number
     end_at = fields.IntField(null=True)  # month number, nullable
     freq = fields.CharField(max_length=20)  # frequency enum
+    is_active = fields.BooleanField(default=True)  # Add this field
     scenario = fields.ForeignKeyField(
         "models.Scenario",
         related_name="costs",

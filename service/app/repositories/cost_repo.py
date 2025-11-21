@@ -15,7 +15,8 @@ class CostRepository:
         starts_at: int,
         freq: str,
         scenario_id: UUID,
-        end_at: Optional[int] = None
+        end_at: Optional[int] = None,
+        is_active: bool = True  # Add this parameter
     ) -> Cost:
         """Create a new cost item"""
         # Get scenario to ensure it exists
@@ -28,6 +29,7 @@ class CostRepository:
             starts_at=starts_at,
             end_at=end_at,
             freq=freq,
+            is_active=is_active,  # Add this field
             scenario=scenario  # Use foreign key relationship
         )
         return cost
@@ -49,7 +51,8 @@ class CostRepository:
         starts_at: Optional[int] = None,
         end_at: Optional[int] = None,
         freq: Optional[str] = None,
-        scenario_id: Optional[UUID] = None
+        scenario_id: Optional[UUID] = None,
+        is_active: Optional[bool] = None  # Add this parameter
     ) -> Optional[Cost]:
         """Update a cost item"""
         try:
@@ -67,6 +70,8 @@ class CostRepository:
                 cost.end_at = end_at
             if freq is not None:
                 cost.freq = freq
+            if is_active is not None:  # Add this condition
+                cost.is_active = is_active
             if scenario_id is not None:
                 scenario = await Scenario.get(id=scenario_id)
                 cost.scenario = scenario

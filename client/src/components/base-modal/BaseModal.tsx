@@ -56,7 +56,7 @@ export const BaseModal: React.FC<BaseModalProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
-          "sm:max-w-4xl max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
+          "sm:max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
           className
         )}
       >
@@ -64,7 +64,7 @@ export const BaseModal: React.FC<BaseModalProps> = ({
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
-        <div className="py-4">{children}</div>
+        <div className="py-4 overflow-x-hidden">{children}</div>
         <DialogFooter>
           <Button
             type="button"

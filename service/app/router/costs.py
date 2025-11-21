@@ -31,6 +31,7 @@ class CostCreateRequest(BaseModel):
     end_at: Optional[int] = Field(None, ge=1)
     freq: CostFrequency = Field(...)
     scenario_id: UUID = Field(...)
+    is_active: bool = Field(default=True)  # Add this field
 
 class CostUpdateRequest(BaseModel):
     """Request schema for updating a cost"""
@@ -41,6 +42,7 @@ class CostUpdateRequest(BaseModel):
     end_at: Optional[int] = Field(None, ge=1)
     freq: Optional[CostFrequency] = None
     scenario_id: Optional[UUID] = None
+    is_active: Optional[bool] = None  # Add this field
 
 class CostBulkCreateRequest(BaseModel):
     """Request schema for bulk creating costs"""
@@ -55,6 +57,7 @@ class CostResponse(BaseModel):
     starts_at: int
     end_at: Optional[int]
     freq: str
+    is_active: bool  # Add this field
     scenario_id: UUID
     created_at: str
     updated_at: str
@@ -72,6 +75,7 @@ def _cost_to_dict(cost) -> dict:
         "starts_at": cost.starts_at,
         "end_at": cost.end_at,
         "freq": cost.freq,
+        "is_active": cost.is_active,  # Add this field
         "scenario_id": cost.scenario_id,
         "created_at": cost.created_at.isoformat(),
         "updated_at": cost.updated_at.isoformat(),
@@ -95,7 +99,8 @@ async def create_cost(
             starts_at=request.starts_at,
             end_at=request.end_at,
             freq=request.freq.value,  # Get enum value
-            scenario_id=request.scenario_id
+            scenario_id=request.scenario_id,
+            is_active=request.is_active  # Add this parameter
         )
         
         logger.info(f"✅ Cost created: ID={cost.id}")
@@ -126,7 +131,8 @@ async def create_costs_bulk(
                 "starts_at": cost_req.starts_at,
                 "end_at": cost_req.end_at,
                 "freq": cost_req.freq.value,  # Get enum value
-                "scenario_id": cost_req.scenario_id
+                "scenario_id": cost_req.scenario_id,
+                "is_active": cost_req.is_active  # Add this field
             })
         
         costs = await CostRepository.create_costs_bulk(costs_data)
@@ -166,7 +172,8 @@ async def update_cost(
             starts_at=request.starts_at,
             end_at=request.end_at,
             freq=request.freq.value if request.freq else None,  # Get enum value if provided
-            scenario_id=request.scenario_id
+            scenario_id=request.scenario_id,
+            is_active=request.is_active  # Add this parameter
         )
         
         if not updated_cost:

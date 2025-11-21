@@ -14,6 +14,7 @@ export interface CostItem {
   endsAt: number | null; // last month it's active (null = until end of horizon)
   annualValue: number; // amount per year (always)
   frequency: CostFrequency; // how that annual amount is charged
+  isActive: boolean; // Add this field
   scenarioId: string; // which scenario this belongs to
 }
 
@@ -27,6 +28,7 @@ export const costs: CostItem[] = [
     annualValue: 180_000,
     frequency: "MONTHLY",
     scenarioId: "scenario-1",
+    isActive: true,
   },
   {
     id: "c2",
@@ -37,6 +39,7 @@ export const costs: CostItem[] = [
     annualValue: 90_000,
     frequency: "MONTHLY",
     scenarioId: "scenario-1",
+    isActive: true,
   },
   {
     id: "c3",
@@ -47,6 +50,7 @@ export const costs: CostItem[] = [
     annualValue: 96_000, // 8k per month * 12
     frequency: "MONTHLY",
     scenarioId: "scenario-1",
+    isActive: true,
   },
   {
     id: "c4",
@@ -57,5 +61,6 @@ export const costs: CostItem[] = [
     annualValue: 12_000,
     frequency: "ONE_TIME",
     scenarioId: "scenario-1",
+    isActive: true,
   },
 ];

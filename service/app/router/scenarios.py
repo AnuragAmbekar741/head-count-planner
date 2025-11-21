@@ -16,17 +16,23 @@ class ScenarioCreateRequest(BaseModel):
     """Request schema for creating a scenario"""
     name: str = Field(..., min_length=1, max_length=255, description="Scenario name")
     description: Optional[str] = Field(None, description="Scenario description")
+    funding: Optional[float] = Field(None, ge=0, description="Scenario funding")
+    revenue: Optional[float] = Field(None, ge=0, description="Scenario revenue")  # Add this field
 
 class ScenarioUpdateRequest(BaseModel):
     """Request schema for updating a scenario"""
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
+    funding: Optional[float] = Field(None, ge=0)
+    revenue: Optional[float] = Field(None, ge=0)  # Add this field
 
 class ScenarioResponse(BaseModel):
     """Response schema for scenario"""
     id: UUID
     name: str
     description: Optional[str]
+    funding: Optional[float]
+    revenue: Optional[float]  # Add this field
     created_at: str
     updated_at: str
 
@@ -39,6 +45,8 @@ def _scenario_to_dict(scenario) -> dict:
         "id": scenario.id,
         "name": scenario.name,
         "description": scenario.description,
+        "funding": float(scenario.funding) if scenario.funding else None,
+        "revenue": float(scenario.revenue) if scenario.revenue else None,  # Add this field
         "created_at": scenario.created_at.isoformat(),
         "updated_at": scenario.updated_at.isoformat(),
     }
@@ -56,7 +64,9 @@ async def create_scenario(
         
         scenario = await ScenarioRepository.create_scenario(
             name=request.name,
-            description=request.description
+            description=request.description,
+            funding=request.funding,
+            revenue=request.revenue  # Add this parameter
         )
         
         logger.info(f"✅ Scenario created: ID={scenario.id}")
@@ -127,7 +137,9 @@ async def update_scenario(
         updated_scenario = await ScenarioRepository.update_scenario(
             scenario_id=scenario_id,
             name=request.name,
-            description=request.description
+            description=request.description,
+            funding=request.funding,
+            revenue=request.revenue  # Add this parameter
         )
         
         if not updated_scenario:

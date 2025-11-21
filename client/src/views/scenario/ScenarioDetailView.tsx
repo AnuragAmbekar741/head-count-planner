@@ -23,6 +23,7 @@ const transformCostToCostItem = (cost: {
   starts_at: number;
   end_at: number | null;
   freq: string;
+  is_active: boolean;
   scenario_id: string;
 }): CostItem => {
   // Map backend frequency to frontend frequency
@@ -42,6 +43,7 @@ const transformCostToCostItem = (cost: {
     endsAt: cost.end_at,
     annualValue: cost.value,
     frequency: frequencyMap[cost.freq.toLowerCase()] || "MONTHLY",
+    isActive: cost.is_active, // Add this field
     scenarioId: cost.scenario_id,
   };
 };

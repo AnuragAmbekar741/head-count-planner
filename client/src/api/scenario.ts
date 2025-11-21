@@ -3,17 +3,23 @@ import { get, post, put, del } from "./request";
 export interface ScenarioCreateRequest {
   name: string;
   description?: string | null;
+  funding?: number | null;
+  revenue?: number | null; // Add this field
 }
 
 export interface ScenarioUpdateRequest {
   name?: string;
   description?: string | null;
+  funding?: number | null;
+  revenue?: number | null; // Add this field
 }
 
 export interface ScenarioResponse {
   id: string;
   name: string;
   description: string | null;
+  funding: number | null;
+  revenue: number | null; // Add this field
   created_at: string;
   updated_at: string;
 }

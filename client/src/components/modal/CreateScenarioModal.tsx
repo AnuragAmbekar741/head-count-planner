@@ -15,7 +15,7 @@ import { useCreateScenario } from "@/hooks/scenario";
 import { useCreateCostsBulk } from "@/hooks/cost";
 import { CostFrequency, type CostFrequencyType } from "@/api/cost";
 import { Plus, Trash2, Sparkles } from "lucide-react";
-
+import { TEAM_TEMPLATES } from "@/data/scenario-templates";
 interface CostFormData {
   title: string;
   value: string;
@@ -30,216 +30,14 @@ interface CreateScenarioModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// Team templates
-const TEAM_TEMPLATES = [
-  {
-    name: "5-Person Startup Team",
-    description: "3 Engineers, 1 Designer, 1 QA",
-    costs: [
-      {
-        title: "Senior Software Engineer #1",
-        value: "180000",
-        category: "Engineering",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-      {
-        title: "Software Engineer #2",
-        value: "140000",
-        category: "Engineering",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-      {
-        title: "Junior Software Engineer",
-        value: "100000",
-        category: "Engineering",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-      {
-        title: "Product Designer",
-        value: "120000",
-        category: "Design",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-      {
-        title: "QA Engineer",
-        value: "90000",
-        category: "Quality Assurance",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-    ],
-  },
-  {
-    name: "10-Person Growth Team",
-    description: "5 Engineers, 2 Designers, 1 PM, 1 QA, 1 DevOps",
-    costs: [
-      {
-        title: "Engineering Manager",
-        value: "200000",
-        category: "Engineering",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-      {
-        title: "Senior Engineer #1",
-        value: "180000",
-        category: "Engineering",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-      {
-        title: "Senior Engineer #2",
-        value: "180000",
-        category: "Engineering",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-      {
-        title: "Engineer #1",
-        value: "140000",
-        category: "Engineering",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-      {
-        title: "Engineer #2",
-        value: "140000",
-        category: "Engineering",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-      {
-        title: "Senior Designer",
-        value: "150000",
-        category: "Design",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-      {
-        title: "Designer",
-        value: "120000",
-        category: "Design",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-      {
-        title: "Product Manager",
-        value: "160000",
-        category: "Product",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-      {
-        title: "QA Engineer",
-        value: "100000",
-        category: "Quality Assurance",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-      {
-        title: "DevOps Engineer",
-        value: "150000",
-        category: "Infrastructure",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-    ],
-  },
-  {
-    name: "Small Engineering Team",
-    description: "2 Senior Engineers, 1 Mid-level Engineer",
-    costs: [
-      {
-        title: "Senior Software Engineer #1",
-        value: "180000",
-        category: "Engineering",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-      {
-        title: "Senior Software Engineer #2",
-        value: "180000",
-        category: "Engineering",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-      {
-        title: "Software Engineer",
-        value: "140000",
-        category: "Engineering",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-    ],
-  },
-  {
-    name: "Sales & Marketing Team",
-    description: "2 Sales Reps, 1 Marketing Manager, 1 Content Creator",
-    costs: [
-      {
-        title: "Sales Representative #1",
-        value: "80000",
-        category: "Sales",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-      {
-        title: "Sales Representative #2",
-        value: "80000",
-        category: "Sales",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-      {
-        title: "Marketing Manager",
-        value: "110000",
-        category: "Marketing",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-      {
-        title: "Content Creator",
-        value: "70000",
-        category: "Marketing",
-        starts_at: "1",
-        end_at: "",
-        freq: CostFrequency.MONTHLY as CostFrequencyType,
-      },
-    ],
-  },
-];
-
 export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
   open,
   onOpenChange,
 }) => {
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
+  const [funding, setFunding] = useState("");
+  const [revenue, setRevenue] = useState(""); // Add revenue state
   const [description, setDescription] = useState("");
   const [costs, setCosts] = useState<CostFormData[]>([
     {
@@ -254,6 +52,9 @@ export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
   const [createdScenarioId, setCreatedScenarioId] = useState<string | null>(
     null
   );
+  const [selectedTemplateIndices, setSelectedTemplateIndices] = useState<
+    Set<number>
+  >(new Set());
 
   const createScenario = useCreateScenario();
   const createCostsBulk = useCreateCostsBulk();
@@ -266,6 +67,8 @@ export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
       createScenario.mutate(
         {
           name: name.trim(),
+          funding: funding ? parseFloat(funding) : undefined,
+          revenue: revenue ? parseFloat(revenue) : undefined, // Add revenue
           description: description.trim() || undefined,
         },
         {
@@ -281,14 +84,52 @@ export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
     }
   };
 
-  const handleTemplateSelect = (template: (typeof TEAM_TEMPLATES)[0]) => {
+  const handleTemplateSelect = (
+    template: (typeof TEAM_TEMPLATES)[0],
+    index: number
+  ) => {
+    const newSelected = new Set(selectedTemplateIndices);
+
+    if (newSelected.has(index)) {
+      // Deselect template - remove its costs
+      newSelected.delete(index);
+    } else {
+      // Select template - add its costs
+      newSelected.add(index);
+    }
+
+    setSelectedTemplateIndices(newSelected);
+
+    // Merge all selected template costs
+    const allCosts: CostFormData[] = [];
+    newSelected.forEach((idx) => {
+      const template = TEAM_TEMPLATES[idx];
+      template.costs.forEach((cost) => {
+        allCosts.push({
+          title: cost.title,
+          value: cost.value.toString(),
+          category: cost.category,
+          starts_at: cost.starts_at.toString(),
+          end_at: cost.end_at.toString(),
+          freq: cost.freq,
+        });
+      });
+    });
+
+    // If no templates selected, keep at least one empty cost form
     setCosts(
-      template.costs.map((cost) => ({
-        ...cost,
-        value: cost.value.toString(),
-        starts_at: cost.starts_at.toString(),
-        end_at: cost.end_at.toString(),
-      }))
+      allCosts.length > 0
+        ? allCosts
+        : [
+            {
+              title: "",
+              value: "",
+              category: "",
+              starts_at: "",
+              end_at: "",
+              freq: CostFrequency.MONTHLY,
+            },
+          ]
     );
   };
 
@@ -351,6 +192,7 @@ export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
             end_at: cost.end_at ? parseInt(cost.end_at) : null,
             freq: cost.freq,
             scenario_id: createdScenarioId,
+            is_active: true, // Add this - explicitly set to true for new costs
           })),
         },
         {
@@ -371,6 +213,8 @@ export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
   const handleClose = () => {
     setStep(1);
     setName("");
+    setFunding("");
+    setRevenue(""); // Reset revenue
     setDescription("");
     setCosts([
       {
@@ -383,6 +227,7 @@ export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
       },
     ]);
     setCreatedScenarioId(null);
+    setSelectedTemplateIndices(new Set());
     createScenario.reset();
     createCostsBulk.reset();
     onOpenChange(false);
@@ -390,10 +235,26 @@ export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
 
   const handleCancel = () => {
     if (step === 1) {
-      handleClose();
+      onOpenChange(false);
+      setName("");
+      setFunding("");
+      setRevenue("");
+      setDescription("");
     } else {
       setStep(1);
     }
+    // Reset templates
+    setSelectedTemplateIndices(new Set());
+    setCosts([
+      {
+        title: "",
+        value: "",
+        category: "",
+        starts_at: "",
+        end_at: "",
+        freq: CostFrequency.MONTHLY,
+      },
+    ]);
   };
 
   const renderStep1 = () => (
@@ -404,9 +265,36 @@ export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
           id="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Enter scenario name"
+          placeholder="Enter scenario name (e.g., 🚀 Launch Plan)"
           required
         />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="funding">Funding</Label>
+        <Input
+          id="funding"
+          type="number"
+          value={funding}
+          onChange={(e) => setFunding(e.target.value)}
+          placeholder="Enter funding amount (optional)"
+          min="0"
+          step="0.01"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="revenue">Annual Revenue</Label>
+        <Input
+          id="revenue"
+          type="number"
+          value={revenue}
+          onChange={(e) => setRevenue(e.target.value)}
+          placeholder="Enter annual revenue amount (optional)"
+          min="0"
+          step="0.01"
+        />
+        <p className="text-xs text-muted-foreground">
+          Total revenue for the year
+        </p>
       </div>
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
@@ -421,31 +309,77 @@ export const CreateScenarioModal: React.FC<CreateScenarioModalProps> = ({
   );
 
   const renderStep2 = () => (
-    <div className="space-y-4">
+    <div className="space-y-4 overflow-x-hidden">
       {/* Templates Section */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-primary" />
           <Label className="text-sm font-medium">Quick Templates</Label>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          {TEAM_TEMPLATES.map((template, idx) => (
-            <Button
-              key={idx}
-              type="button"
-              variant="outline"
-              className="h-auto p-3 flex flex-col items-start text-left"
-              onClick={() => handleTemplateSelect(template)}
-            >
-              <div className="font-medium text-sm">{template.name}</div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {template.description}
-              </div>
-              <Badge variant="secondary" className="mt-2 text-xs">
-                {template.costs.length} roles
-              </Badge>
-            </Button>
-          ))}
+        <div className="relative w-full">
+          <div className="overflow-x-auto overflow-y-hidden pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+            <div className="flex gap-2 w-max">
+              {TEAM_TEMPLATES.map((template, idx) => {
+                // Group costs by category and count them
+                const roleCounts = template.costs.reduce(
+                  (acc, cost) => {
+                    const category = cost.category;
+                    acc[category] = (acc[category] || 0) + 1;
+                    return acc;
+                  },
+                  {} as Record<string, number>
+                );
+
+                const isSelected = selectedTemplateIndices.has(idx);
+
+                return (
+                  <div
+                    key={idx}
+                    className={`relative w-[200px] flex-shrink-0 cursor-pointer rounded-lg border-2 p-3 transition-all ${
+                      isSelected
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                    onClick={() => handleTemplateSelect(template, idx)}
+                  >
+                    {/* Radio indicator */}
+                    <div className="absolute top-3 right-3">
+                      <div
+                        className={`h-4 w-4 rounded-full border-2 flex items-center justify-center transition-all ${
+                          isSelected
+                            ? "border-primary"
+                            : "border-muted-foreground"
+                        }`}
+                      >
+                        {isSelected && (
+                          <div className="h-2 w-2 rounded-full bg-primary" />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="pr-6">
+                      <div className="font-medium text-sm line-clamp-1 w-full">
+                        {template.name}
+                      </div>
+                      <div className="flex flex-wrap gap-1 mt-2 w-full">
+                        {Object.entries(roleCounts).map(
+                          ([category, count], badgeIdx) => (
+                            <Badge
+                              key={badgeIdx}
+                              variant="secondary"
+                              className="text-xs px-1.5 py-0.5"
+                            >
+                              {count} × {category}
+                            </Badge>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 

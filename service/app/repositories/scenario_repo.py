@@ -9,12 +9,16 @@ class ScenarioRepository:
     @staticmethod
     async def create_scenario(
         name: str,
-        description: Optional[str] = None
+        description: Optional[str] = None,
+        funding: Optional[float] = None,
+        revenue: Optional[float] = None  # Add this parameter
     ) -> Scenario:
         """Create a new scenario"""
         scenario = await Scenario.create(
             name=name,
-            description=description
+            description=description,
+            funding=funding,
+            revenue=revenue  # Add this field
         )
         return scenario
 
@@ -35,7 +39,9 @@ class ScenarioRepository:
     async def update_scenario(
         scenario_id: UUID,
         name: Optional[str] = None,
-        description: Optional[str] = None
+        description: Optional[str] = None,
+        funding: Optional[float] = None,
+        revenue: Optional[float] = None  # Add this parameter
     ) -> Optional[Scenario]:
         """Update a scenario"""
         try:
@@ -45,6 +51,10 @@ class ScenarioRepository:
                 scenario.name = name
             if description is not None:
                 scenario.description = description
+            if funding is not None:
+                scenario.funding = funding
+            if revenue is not None:  # Add this condition
+                scenario.revenue = revenue
             
             await scenario.save()
             return scenario

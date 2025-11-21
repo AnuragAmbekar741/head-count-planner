@@ -3,7 +3,7 @@ import { useGetScenarios } from "@/hooks/scenario";
 import { useDeleteScenario } from "@/hooks/scenario";
 import { useGetScenario } from "@/hooks/scenario";
 import { useGetCostsByScenario } from "@/hooks/cost";
-import { FolderOpen, Eye, Pencil, Trash2, ArrowLeft } from "lucide-react";
+import { FolderOpen, Eye, Trash2, ArrowLeft } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -25,6 +25,21 @@ import { CreateScenarioModal } from "@/components/modal";
 import { DataTable } from "@/components/data-table/DataTable";
 import type { CostItem } from "@/data/cost-item";
 import { DeleteScenarioModal } from "@/components/modal";
+import { ScenarioMetrics } from "@/components/scenario-metrics/ScenarioMetrics";
+import { AddCostModal } from "@/components/modal/AddCostModal";
+import {
+  calculateScenarioMetrics,
+  formatRunway,
+} from "@/utils/scenario-metrics";
+import { formatCurrency } from "@/utils/number-format";
+import {
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  DollarSign,
+  Flame,
+} from "lucide-react";
+import { useGetCosts } from "@/hooks/cost";
 
 // Transform CostResponse to CostItem
 const transformCostToCostItem = (cost: {
@@ -35,6 +50,7 @@ const transformCostToCostItem = (cost: {
   starts_at: number;
   end_at: number | null;
   freq: string;
+  is_active: boolean; // Add this field
   scenario_id: string;
 }): CostItem => {
   const frequencyMap: Record<string, CostItem["frequency"]> = {
@@ -53,6 +69,7 @@ const transformCostToCostItem = (cost: {
     endsAt: cost.end_at,
     annualValue: cost.value,
     frequency: frequencyMap[cost.freq.toLowerCase()] || "MONTHLY",
+    isActive: cost.is_active,
     scenarioId: cost.scenario_id,
   };
 };
@@ -67,12 +84,25 @@ const Scenario: React.FC = () => {
     id: string;
     name: string;
   } | null>(null);
+  const [outlineViewType, setOutlineViewType] = useState<"monthly" | "annual">(
+    "annual"
+  ); // Add this state
+  const [selectedMonths, setSelectedMonths] = useState<number[]>([]); // Add this state
   const deleteScenario = useDeleteScenario();
 
   // Get selected scenario and costs
   const { data: selectedScenario } = useGetScenario(selectedScenarioId);
   const { data: costs, isLoading: isLoadingCosts } =
     useGetCostsByScenario(selectedScenarioId);
+  const { data: allCosts } = useGetCosts(); // Fetch all costs
+
+  // Add helper function to get costs for a scenario
+  const getScenarioCosts = (scenarioId: string): CostItem[] => {
+    if (!allCosts) return [];
+    return allCosts
+      .filter((cost) => cost.scenario_id === scenarioId)
+      .map(transformCostToCostItem);
+  };
 
   const costItems = useMemo(() => {
     if (!costs) return [];
@@ -101,12 +131,6 @@ const Scenario: React.FC = () => {
   const handleView = (scenarioId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedScenarioId(scenarioId);
-  };
-
-  const handleEdit = (scenarioId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    // TODO: Implement edit functionality
-    console.log("Edit scenario:", scenarioId);
   };
 
   const handleCardClick = (scenarioId: string) => {
@@ -225,13 +249,30 @@ const Scenario: React.FC = () => {
             </Badge>
           </div>
 
+          {/* Metrics Section */}
+          <ScenarioMetrics
+            costs={costItems}
+            funding={selectedScenario?.funding || null}
+            revenue={selectedScenario?.revenue || null}
+            viewType={outlineViewType} // Add this prop
+            selectedMonths={
+              outlineViewType === "monthly" ? selectedMonths : undefined
+            } // Add this prop
+          />
+
           {/* Data Table */}
           {isLoadingCosts ? (
             <div className="space-y-4">
               <Skeleton className="h-64 w-full" />
             </div>
           ) : costItems.length > 0 ? (
-            <DataTable data={costItems} />
+            <DataTable
+              data={costItems}
+              outlineViewType={outlineViewType} // Add this prop
+              onOutlineViewTypeChange={setOutlineViewType} // Add this prop
+              onSelectedMonthsChange={setSelectedMonths} // Add this prop
+              scenarioId={selectedScenarioId || undefined} // Add this prop
+            />
           ) : (
             <Card>
               <CardContent className="py-12">
@@ -243,6 +284,13 @@ const Scenario: React.FC = () => {
           )}
         </div>
         <CreateScenarioModal open={isModalOpen} onOpenChange={setIsModalOpen} />
+        {selectedScenarioId && (
+          <AddCostModal
+            open={false} // This modal is now handled by DataTable
+            onOpenChange={() => {}}
+            scenarioId={selectedScenarioId}
+          />
+        )}
       </>
     );
   }
@@ -262,70 +310,171 @@ const Scenario: React.FC = () => {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {scenarios.map((scenario) => (
-            <Card
-              key={scenario.id}
-              className="hover:shadow-lg transition-all duration-200 group relative cursor-pointer"
-              onClick={() => handleCardClick(scenario.id)}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-lg font-semibold truncate flex-1">
-                    {scenario.name}
-                  </h3>
-                  <Badge variant="secondary" className="shrink-0 text-xs">
-                    {new Date(scenario.created_at).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </Badge>
-                </div>
-                {scenario.description && (
-                  <CardDescription className="line-clamp-2 mt-2">
-                    {scenario.description}
-                  </CardDescription>
-                )}
-              </CardHeader>
-              <CardContent className="pt-0">
-                {/* Hover Actions - Bottom Left in Badge */}
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 mt-4">
-                  <Badge
-                    variant="outline"
-                    className="gap-0 p-0 border-0 bg-muted/50"
-                  >
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 rounded-none hover:bg-accent"
-                      onClick={(e) => handleView(scenario.id, e)}
+          {scenarios.map((scenario) => {
+            const scenarioCosts = getScenarioCosts(scenario.id);
+            const metrics = calculateScenarioMetrics(
+              scenarioCosts,
+              scenario.funding ? Number(scenario.funding) : null,
+              scenario.revenue ? Number(scenario.revenue) : null
+            );
+
+            return (
+              <Card
+                key={scenario.id}
+                className="hover:shadow-lg transition-all duration-200 group relative cursor-pointer border-2 hover:border-primary/30 h-fit"
+                onClick={() => handleCardClick(scenario.id)}
+              >
+                <CardHeader className="pb-2 pt-3 px-4">
+                  {/* Title, Date, and Funding in one row as badges */}
+                  <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                    <Badge variant="default" className="text-xs font-semibold">
+                      {scenario.name}
+                    </Badge>
+                    {scenario.funding && (
+                      <Badge variant="secondary" className="text-xs">
+                        <DollarSign className="h-3 w-3 mr-1" />
+                        {formatCurrency(Number(scenario.funding))}
+                      </Badge>
+                    )}
+                    <Badge variant="secondary" className="text-xs">
+                      {new Date(scenario.created_at).toLocaleDateString(
+                        "en-US",
+                        {
+                          month: "short",
+                          day: "numeric",
+                        }
+                      )}
+                    </Badge>
+                  </div>
+
+                  {/* Description below */}
+                  {scenario.description && (
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {scenario.description}
+                    </p>
+                  )}
+                </CardHeader>
+
+                <CardContent className="pt-2 pb-1.5 px-4 space-y-2">
+                  {/* Metrics Section */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Annual Burn Rate */}
+                    <div className="p-2.5 rounded-md bg-muted/40 border border-border/50">
+                      <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">
+                        Annual Burn
+                      </div>
+                      <div className="text-sm font-bold">
+                        {formatCurrency(metrics.annualBurnRate)}
+                      </div>
+                    </div>
+
+                    {/* Net Burn Rate */}
+                    <div className="p-2.5 rounded-md bg-muted/40 border border-border/50">
+                      <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">
+                        Net Burn
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="text-sm font-bold">
+                          {formatCurrency(metrics.netBurnRate * 12)}
+                        </div>
+                        {metrics.netBurnRate < 0 ? (
+                          <Badge
+                            variant="default"
+                            className="h-4 px-1.5 text-[10px] bg-green-500 hover:bg-green-500"
+                          >
+                            <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
+                            Profit
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="destructive"
+                            className="h-4 px-1.5 text-[10px]"
+                          >
+                            <TrendingDown className="h-2.5 w-2.5 mr-0.5" />
+                            Loss
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Runway */}
+                    <div className="p-2.5 rounded-md bg-muted/40 border border-border/50">
+                      <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
+                        <Clock className="h-2.5 w-2.5" />
+                        Runway
+                      </div>
+                      <div className="text-sm font-bold">
+                        {formatRunway(metrics.runway)}
+                      </div>
+                    </div>
+
+                    {/* Growth Rate */}
+                    <div className="p-2.5 rounded-md bg-muted/40 border border-border/50">
+                      <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">
+                        Growth
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="text-sm font-bold">
+                          {metrics.growthRate >= 0 ? "+" : ""}
+                          {metrics.growthRate.toFixed(1)}%
+                        </div>
+                        {metrics.growthRate > 0 ? (
+                          <TrendingUp className="h-3.5 w-3.5 text-green-500" />
+                        ) : metrics.growthRate < 0 ? (
+                          <TrendingDown className="h-3.5 w-3.5 text-red-500" />
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Additional Info Badges */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    {scenarioCosts.length > 0 && (
+                      <Badge variant="outline" className="text-xs">
+                        <Flame className="h-3 w-3 mr-1" />
+                        {scenarioCosts.filter((c) => c.isActive).length} Active
+                      </Badge>
+                    )}
+                    {scenario.revenue && (
+                      <Badge variant="outline" className="text-xs">
+                        Revenue: {formatCurrency(Number(scenario.revenue))}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Hover Actions */}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pt-1.5 border-t">
+                    <Badge
+                      variant="outline"
+                      className="gap-0 p-0 border-0 bg-muted/50 w-full"
                     >
-                      <Eye className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 rounded-none hover:bg-accent"
-                      onClick={(e) => handleEdit(scenario.id, e)}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 rounded-none hover:bg-accent text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={(e) =>
-                        handleDelete(scenario.id, scenario.name, e)
-                      }
-                      disabled={deleteScenario.isPending}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-1 h-7 rounded-none hover:bg-accent text-xs"
+                        onClick={(e) => handleView(scenario.id, e)}
+                      >
+                        <Eye className="h-3 w-3 mr-1" />
+                        View
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-1 h-7 rounded-none hover:bg-accent text-destructive hover:text-destructive hover:bg-destructive/10 text-xs"
+                        onClick={(e) =>
+                          handleDelete(scenario.id, scenario.name, e)
+                        }
+                        disabled={deleteScenario.isPending}
+                      >
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        Delete
+                      </Button>
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
       <CreateScenarioModal open={isModalOpen} onOpenChange={setIsModalOpen} />
