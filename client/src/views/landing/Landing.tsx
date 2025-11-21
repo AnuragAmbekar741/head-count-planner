@@ -58,19 +58,19 @@ export default function Landing() {
           <div className="space-y-2">
             <div className="text-3xl font-bold text-primary">Plan</div>
             <p className="text-sm text-muted-foreground">
-              Create scenarios and model your costs
+              Create scenarios and model <br /> your costs
             </p>
           </div>
           <div className="space-y-2">
             <div className="text-3xl font-bold text-primary">Track</div>
             <p className="text-sm text-muted-foreground">
-              Monitor burn rate and runway in real-time
+              Monitor burn rate and runway <br /> in real-time
             </p>
           </div>
           <div className="space-y-2">
             <div className="text-3xl font-bold text-primary">Decide</div>
             <p className="text-sm text-muted-foreground">
-              Make informed decisions with clarity
+              Make informed decisions <br /> with clarity
             </p>
           </div>
         </div>
